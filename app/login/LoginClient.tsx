@@ -1,14 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  User,
-} from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, User, } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import styles from './login.module.css';
 
@@ -68,8 +63,14 @@ export default function LoginClient({ nextPath = '/tracker' }: { nextPath?: stri
   return (
     <div className="container">
       <div className={styles.loginContainer}>
-        <h1 className={styles.textGradient}>CANNABIS TRACKER</h1>
-        <h2 className={styles.subtitle}>Private, focused tracking for your sessions</h2>
+        <h1 className={styles.brandTitle}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Image src="/My%20Canna%20Tracker.svg" alt="My Canna Tracker logo" width={36} height={36} priority/>
+            <span className="brand-gradient">MY CANNATRACKER</span>
+          </span>
+        </h1>
+
+        <h2 className={styles.subtitle}>Personalized, focused tracking for your sessions</h2>
         <p className={styles.tagline}>
           Log what you try, how it felt, and build your own private cultivar history.
         </p>
@@ -114,11 +115,7 @@ export default function LoginClient({ nextPath = '/tracker' }: { nextPath?: stri
         </button>
 
         <div className={styles.secondaryBtnsContainer}>
-          <button
-            onClick={() => setIsRegister((v) => !v)}
-            className={styles.cardButtonSecondary}
-            type="button"
-          >
+          <button onClick={() => setIsRegister((v) => !v)} className={styles.cardButtonSecondary} type="button">
             <small>{isRegister ? 'Log in' : 'Sign up'}</small>
           </button>
           <button onClick={handleResetPassword} className={styles.cardButtonSecondary} type="button">
@@ -129,7 +126,10 @@ export default function LoginClient({ nextPath = '/tracker' }: { nextPath?: stri
         <div className={styles.fullLine} />
 
         <footer className={styles.footer}>
-          <span>A Product Tracking Web Based App Project<br />Built with Next.js + TypeScript + Firebase</span>
+          <span>
+            A Product Tracking Web Based App Project<br />
+            Built with Next.js + TypeScript + Firebase
+          </span>
         </footer>
       </div>
     </div>
