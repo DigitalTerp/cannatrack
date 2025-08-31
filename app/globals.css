@@ -1,26 +1,305 @@
-@import "tailwindcss";
+/* ---------- Fonts ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ---------- Reset / Base ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html { height: 100%; scroll-behavior: smooth; }
+
+body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  background: #f9fafb;
+  color: #1f2937; /* slate-800 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background:#1e293b;
+    color: #f1f5f9;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ---------- Typography ---------- */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 1.5rem 0 .75rem;
 }
+h1 { font-size: 2.25rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.75rem; }
+h3 { font-size: 1.5rem; }
+
+p, ul, ol, pre, table { margin: 1rem 0; }
+p + p { margin-top: .75rem; }
+
+code, pre { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; }
+
+a {
+  color: #059669;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color .2s ease;
+}
+a:hover { color: #047857; }
+
+/* ---------- Layout helpers ---------- */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+}
+
+.page-hero { text-align: center; margin-bottom: 1rem; }
+.page-hero .actions {
+  display: flex; gap: .5rem; justify-content: center; margin-top: .5rem;
+}
+
+/* ---------- Header (centered + responsive) ---------- */
+.site-header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(255,255,255,.8);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #e5e7eb;
+}
+@media (prefers-color-scheme: dark) {
+  .site-header { background: rgba(2,6,23,.6); border-bottom-color: #334155; }
+}
+
+.header-inner {
+  display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: .75rem 0;
+}
+
+/* Shared header row (hamburger | title | right-actions) */
+.header-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;   /* desktop: TRUE center */
+  align-items: center;
+  width: 100%;
+}
+@media (max-width: 720px) {
+  .header-row { grid-template-columns: 56px 1fr 56px; } /* mobile: space for button */
+}
+
+/* One real H1 in header; brand link should not look like a link */
+.site-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  text-align: center;
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+.site-title a { text-decoration: none; color: inherit; }
+.site-title a:hover { text-decoration: none; color: inherit; }
+
+/* Force the title to the middle grid cell so it's centered on desktop */
+.header-row .site-title { grid-column: 2; justify-self: center; }
+
+/* Desktop nav row */
+.site-nav { display: flex; align-items: center; justify-content: center; gap: .5rem; flex-wrap: wrap; }
+.desktop-only { display: block; }
+@media (max-width: 720px) { .desktop-only { display: none; } }
+
+/* Optional area for auth buttons at the right of header-row */
+.header-right { justify-self: end; display: flex; align-items: center; gap: .5rem; }
+
+/* ---------- Cards ---------- */
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,.04);
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,.08); }
+@media (prefers-color-scheme: dark) {
+  .card { background: #1e293b; border-color: #334155; }
+}
+
+/* ---------- Buttons ---------- */
+button, .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+  padding: .6rem 1.1rem; border-radius: .6rem; font-weight: 600; font-size: .95rem;
+  cursor: pointer; border: 1px solid transparent; transition: background .2s, transform .1s, border-color .2s;
+}
+.btn + .btn { margin-left: .5rem; }
+
+.btn-primary { background: #059669; color: #fff; border-color: #047857; }
+.btn-primary:hover { background: #047857; }
+
+/* unified subtle button */
+.btn-ghost { background: transparent; color: #374151; border-color: #d1d5db; }
+.btn-ghost:hover { background: #f3f4f6; }
+@media (prefers-color-scheme: dark) {
+  .btn-ghost { color: #f1f5f9; border-color: #334155; }
+  .btn-ghost:hover { background: #1e293b; }
+}
+
+/* History: make Prev/Today/Next consistent */
+.btn-nav { min-width: 120px; }       /* apply to pager buttons */
+.pager-row .btn { min-width: 120px; }/* also enforce via row selector */
+
+/* Logout Button in Header */
+.logout-btn {
+  background: #ef4444; color: #fff; border-color: #dc2626; box-shadow: 0 6px 14px rgba(239,68,68,.18);
+}
+.logout-btn:hover { background: #dc2626; }
+
+/* ---------- Forms ---------- */
+label { display: block; font-weight: 600; margin-bottom: .35rem; }
+
+.input, input, select, textarea {
+  width: 100%; padding: .6rem .85rem; border: 1px solid #d1d5db; border-radius: .5rem;
+  font-size: .95rem; background: #fff; color: inherit; transition: border-color .2s, box-shadow .2s;
+}
+.input:focus, input:focus, select:focus, textarea:focus {
+  border-color: #059669; box-shadow: 0 0 0 2px rgba(5,150,105,.25); outline: none;
+}
+textarea.input { min-height: 120px; }
+
+@media (prefers-color-scheme: dark) {
+  .input, input, select, textarea { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+}
+
+/* Messages */
+.subtle { color: #6b7280; font-size: .9rem; }
+.error  { color: #b91c1c; font-size: .9rem; }
+.help   { color: #6b7280; font-size: .85rem; }
+
+/* ---------- Badges ---------- */
+.badge {
+  display: inline-block; padding: .3rem .65rem; border-radius: 9999px;
+  font-size: .75rem; font-weight: 600; background: #f3f4f6; color: #374151;
+}
+@media (prefers-color-scheme: dark) { .badge { background: #334155; color: #f1f5f9; } }
+
+/* ---------- Selection & Scrollbars ---------- */
+::selection { background: rgba(5,150,105,.3); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+@media (prefers-color-scheme: dark) { ::-webkit-scrollbar-thumb { background: #475569; } }
+
+/* ====== Hamburger & Drawer ====== */
+/* Hide hamburger on desktop; show only on mobile */
+.hamburger { display: none; }
+@media (max-width: 720px) { .hamburger { display: inline-flex; } }
+
+/* Mobile hamburger: NO background, white icon, larger tap area */
+.hamburger {
+  width: 56px;
+  height: 56px;
+  border-radius: .75rem;
+  border: none;
+  background: transparent;   
+  color: #ffffff;            
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.hamburger:hover { background: transparent; } /* keep background off */
+
+.icon-hamburger .bar {
+  transition: transform .22s ease, opacity .18s ease;
+  transform-origin: 12px 12px; /* center of 24x24 viewBox */
+}
+.icon-hamburger.is-open .bar-top { transform: translateY(5px) rotate(45deg); }
+.icon-hamburger.is-open .bar-mid { opacity: 0; }
+.icon-hamburger.is-open .bar-bot { transform: translateY(-5px) rotate(-45deg); }
+
+/* Drawer */
+.drawer {
+  position: fixed; top: 0; left: 0; height: 100dvh; width: 280px;
+  background: #ffffff; color: inherit; border-right: 1px solid #e5e7eb;
+  transform: translateX(-100%); transition: transform .25s; z-index: 60;
+  padding: 1rem; display: flex; flex-direction: column; gap: 1rem;
+  align-content: center;
+}
+.drawer.open { transform: translateX(0); }
+@media (prefers-color-scheme: dark) { .drawer { background: #0f172a; border-right-color: #334155; } }
+
+.drawer-header { display: flex; align-items: center; justify-content: space-between; }
+.drawer-nav { display: grid; gap: .5rem; }
+
+.drawer-link {
+  display: block; padding: .6rem .85rem; border-radius: .5rem; text-decoration: none; color: inherit; border: 1px solid transparent;
+}
+.drawer-link:hover { background: #f3f4f6; }
+@media (prefers-color-scheme: dark) { .drawer-link:hover { background: #1e293b; } }
+
+/* Backdrop */
+.backdrop {
+  position: fixed; inset: 0; background: rgba(2,6,23,.4); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 55;
+}
+.backdrop.show { opacity: 1; pointer-events: auto; }
+
+
+.drawer-nav.btn {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: .6rem .85rem;
+  align-items: center;
+  justify-content: center;   /* left-align text to match links */
+  border-radius: .5rem;
+}
+
+.drawer-nav .btn + .btn {
+  margin-left: 0 !important;
+}
+
+
+
+/* ---------- History date + pager layout ---------- */
+.date-controls {
+  display: grid;
+  gap: 0.5rem;            /* space between date row and pager row */
+}
+.date-row,
+.pager-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;        /* keeps things tidy on small screens */
+}
+/* keep pager buttons consistent width */
+.pager-row .btn { min-width: 120px; }
+
+/* ---------- Header-specific overrides ----------
+   Make header nav items link-style (no backgrounds) EXCEPT:
+   - Log Session: .btn-primary (green)
+   - Logout: .logout-btn (red)
+-------------------------------------------------- */
+.site-nav a.btn:not(.btn-primary):not(.logout-btn),
+.header-right .btn:not(.btn-primary):not(.logout-btn) {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: inherit !important;
+  padding: .35rem .5rem;
+}
+.site-nav a.btn:not(.btn-primary):not(.logout-btn):hover,
+.header-right .btn:not(.btn-primary):not(.logout-btn):hover {
+  text-decoration: underline;
+  background: transparent !important;
+}
+
+/* Brand Gradient Text */
+.brand-gradient {
+  background-image: linear-gradient(90deg, #059669, #3b82f6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+

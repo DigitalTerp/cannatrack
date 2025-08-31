@@ -1,0 +1,60 @@
+/* Centered date picker + pager */
+.controls {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: center;
+  margin-bottom: 1rem;
+}
+
+.dateRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pagerRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Card grid */
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: stretch;
+}
+
+/* Card internals: header | details | actions */
+.entryCard {
+  display: grid;
+  gap: .75rem;
+  grid-template-rows: auto 1fr auto; /* actions pinned to bottom */
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.name {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .5rem;
+}

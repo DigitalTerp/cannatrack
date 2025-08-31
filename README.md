@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# My Canna Tracker — Next.js + TypeScript + Firebase
 
-## Getting Started
+> _In the Jedi Order, constructing your first lightsaber marks the completion of training._  
+> _This repo is my first lightsaber—my initiation into modern frontend development._
 
-First, run the development server:
+A **personalizable** web app for logging cannabis sessions, organizing cultivars, searching your history, and spotting patterns that reflect **your** preferences and routines. Built to stay out of your way and make it effortless to capture what matters.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Session Logging (fast & flexible)**  
+  Capture method, weight (g), auto-timestamp, rating, notes, plus structured **Effects / Smell / Taste** fields—so your logs are both consistent and expressive.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Cultivar Library (auto-upserting)**  
+  Your library grows automatically from session logs. Store **name, type (Indica/Sativa/Hybrid), cultivator, lineage, THC/THCA/CBD** and reuse across sessions.
 
-## Learn More
+- **Smart Autofill**  
+  Select a previously logged cultivar and key fields (type, cultivator, potency) **auto-populate** to keep entries consistent and fast.
 
-To learn more about Next.js, take a look at the following resources:
+- **Search (History & Library)**  
+  - **History Search:** filter past sessions by **cultivar name, notes, method, rating, or date**.  
+  - **Library Search:** find cultivars by **name, type, cultivator, or lineage**.  
+  Client-side, debounced, and keyboard-friendly.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Daily Tracker**  
+  A today-at-a-glance view with clear type badges and quick actions.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **History Navigation**  
+  Jump via **calendar picker** or **Prev / Today / Next**. Edit/delete inline.
 
-## Deploy on Vercel
+- **Insights (early analytics)**  
+  Simple trends like **totals/means by method, weight, rating**—a foundation for richer analytics.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Mobile-First, Responsive UI**  
+  Built for thumbs: large tap targets, native mobile inputs, accessible contrast, and a clean hamburger nav. Looks great on desktop; **optimized for phones**.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Auth & Data**  
+  Email/Password via Firebase Auth, user-scoped collections in Firestore.
+
+---
+
+## Tech Stack
+
+- **Next.js** (App Router)
+- **TypeScript**
+- **Firebase**  
+  - Authentication (Email/Password)  
+  - **Cloud Firestore** (user-scoped collections)
+- **Styling**: Custom global CSS + **Plus Jakarta Sans**
+- **Utilities**: **date-fns** for time formatting
+
+---
+
+The app auto-upserts cultivars from logs, and autofills session fields when you pick an existing cultivar.
+
+## Architecture Notes
+
+- **Search (History & Library)**  App Router with client components where interactivity matters (forms, history controls, search inputs).
+
+Search is client-side and debounced for snappy filtering in History & Library.
+
+Day math helpers (e.g., startOfTodayMs()) keep daily grouping consistent.
+
+Type safety via Entry, StrainType, etc., so refactors are predictable.
+
+Getting Started (local)
+
+
+## Roadmap
+
+- **Richer Insights** (per-method breakdowns, cultivar scoring, dose totals by time of day)
+
+- **CSV Import/Export**
+
+- **Tagging & Advanced Filters** (sessions & cultivars)
+
+- **Favorites / Pinning** (Quick access to go-to cultivars)
+
+- **User Settings** (Default method/dose, preferred units)
+
+- **Optional Photos/Gallery** Per session
+
+
+I’ll keep adding features and sanding off rough edges. Ideas welcome—open an issue.
+
+## License
+
+MIT — use, remix, and learn freely. 🌿
+
+## Why I Built This
+
+As a judge and a tinkerer, I wanted a tracker that adapts to me—fast to log, easy to search, and expressive enough to capture what actually matters: how it smelled, how it tasted, how it felt, and whether it’s worth revisiting.
+
+Training complete. First lightsaber constructed. Time to explore the galaxy (of cultivars)—one personalized log at a time.

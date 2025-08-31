@@ -1,0 +1,84 @@
+/* Grid for Cards */
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: stretch; 
+}
+
+/* Card Internals */
+.cultivarCard {
+  display: grid;
+  gap: .75rem;
+  grid-template-rows: auto 1fr auto;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.name {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.typeBadge { white-space: nowrap; }
+.type-indica  { background: #ede9fe; color: #6d28d9; }  
+.type-hybrid  { background: #e0f2fe; color: #0369a1; }  
+.type-sativa  { background: #fef3c7; color: #b45309; }  
+@media (prefers-color-scheme: dark) {
+  .type-indica  { background: #312e81; color: #c4b5fd; }
+  .type-hybrid  { background: #0c4a6e; color: #bae6fd; }
+  .type-sativa  { background: #78350f; color: #fde68a; }
+}
+
+.kvList {
+  display: grid;
+  gap: .4rem;
+  min-height: 0; 
+}
+.kvRow  { display: block; }
+.kvLabel {
+  display: inline-block;
+  font-weight: 700;
+  margin-right: .35rem;
+}
+
+.kvLabel::after {
+  content: ":";
+  margin-left: .25rem;
+}
+.kvValue {
+  display: inline;
+  font-weight: 400;
+}
+
+.actions {
+  margin-top: 0;             
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.deleteBtn {
+  background: #ef4444;
+  border: 1px solid #dc2626;
+  color: #fff;
+  min-width: 100px;    
+  text-align: center;
+}
+.deleteBtn:hover { background: #dc2626; }
+
+.editLink {
+  text-decoration: underline;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.editLink:hover { opacity: .8; }

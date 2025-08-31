@@ -1,0 +1,65 @@
+/* ===== Main page wrapper: force black background only here ===== */
+.page {
+  background: #000;            /* override site gradient */
+  color: #e5e7eb;              /* readable on black */
+  min-height: 100dvh;          /* fill the viewport */
+  width: 100%;
+}
+
+/* Tweak common global helpers when nested under .page (optional) */
+.page :global(.subtle) { color: #9ca3af; }
+
+/* ===== Hero layout ===== */
+.hero {
+  display: grid;
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1.5rem 0;
+  /* Mobile-first order: image on top, text below */
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "image"
+    "copy";
+}
+
+.copy { grid-area: copy; }
+.imgWrap { grid-area: image; }
+
+/* Desktop: two columns, text left, image right */
+@media (min-width: 900px) {
+  .hero {
+    grid-template-columns: 1.1fr 0.9fr;
+    grid-template-areas: "copy image";
+  }
+}
+
+/* ===== Text blocks ===== */
+.copy h1 {
+  margin: 0 0 .5rem 0;
+}
+.copy p {
+  margin: 0.25rem 0 0.75rem 0;
+}
+
+.features {
+  margin: 0.75rem 0 1.25rem 0;
+}
+
+/* ===== Actions (buttons row) ===== */
+.actions {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+/* ===== Image ===== */
+.imgWrap {
+  width: 100%;
+}
+.imgWrap img {
+  display: block;
+  width: 100%;
+  height: auto;         /* maintain aspect ratio */
+  border-radius: 12px;
+  object-fit: cover;
+}

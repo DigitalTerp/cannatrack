@@ -1,0 +1,91 @@
+.list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.item {
+  padding: 1rem 1.25rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nameLine {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.name {
+  font-size: 1.1rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.metaChip {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  border-radius: 9999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+.metaChipLabel {
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .metaChip {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+  }
+}
+
+.right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btnDanger {
+  background: #ef4444;
+  color: #fff;
+  border: 1px solid #dc2626;
+}
+.btnDanger:hover {
+  background: #dc2626;
+}
+
+.dangerAnim:hover {
+  animation: dailylog-wiggle 0.18s linear 2;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(239, 68, 68, 0.18);
+}
+
+@keyframes dailylog-wiggle {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+  75% { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .right {
+    justify-content: flex-start;
+  }
+}
