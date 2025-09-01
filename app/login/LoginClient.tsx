@@ -66,7 +66,7 @@ export default function LoginClient({ nextPath = '/tracker' }: { nextPath?: stri
         <h1 className={styles.brandTitle}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
             <Image src="/My%20Canna%20Tracker.svg" alt="My Canna Tracker logo" width={36} height={36} priority/>
-            <span className="brand-gradient">MY CANNATRACKER</span>
+            <span className="brand-gradient">MY CANNA TRACKER</span>
           </span>
         </h1>
 
