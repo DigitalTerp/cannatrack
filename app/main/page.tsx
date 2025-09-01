@@ -12,7 +12,7 @@ export default function MainPage() {
         <section className={styles.hero}>
           {/* Text */}
           <div className={styles.copy}>
-            <h1>Welcome to My Canna Tracker</h1>
+            <h1>Welcome to<br></br> My Canna Tracker</h1>
             <p className="subtle">Log sessions, build your cultivar library, and learn what you love.</p>
 
             <div className={styles.features}>
