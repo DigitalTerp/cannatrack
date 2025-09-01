@@ -40,14 +40,14 @@ export default function EditStrainPage() {
   const [type, setType] = useState<StrainType>('Hybrid');
   const [brand, setBrand] = useState('');
   const [lineage, setLineage] = useState('');
-  const [thcPercent, setThcPercent] = useState<string>('');   // keep as string, parse on save
+  const [thcPercent, setThcPercent] = useState<string>('');  
   const [thcaPercent, setThcaPercent] = useState<string>('');
 
   // Experience fields (stored on the cultivar doc for easy editing)
-  const [effectsStr, setEffectsStr] = useState('');  // comma-separated input
+  const [effectsStr, setEffectsStr] = useState('');  
   const [flavorsStr, setFlavorsStr] = useState('');
   const [aromaStr, setAromaStr] = useState('');
-  const [ratingStr, setRatingStr] = useState('');    // 0-10
+  const [ratingStr, setRatingStr] = useState('');  
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -135,7 +135,7 @@ export default function EditStrainPage() {
       const payload = stripUndefined({
         name: name.trim(),
         nameLower: name.trim().toLowerCase(),
-        name_lc: name.trim().toLowerCase(), // keep legacy field in sync
+        name_lc: name.trim().toLowerCase(), 
         type,
         brand: brand.trim() || undefined,
         lineage: lineage.trim() || undefined,
@@ -215,7 +215,7 @@ export default function EditStrainPage() {
                 className="input"
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
-                placeholder="e.g., Acme Farms"
+                placeholder="e.g., Alien Labs"
               />
             </div>
 
@@ -237,8 +237,8 @@ export default function EditStrainPage() {
                   id="thc"
                   className="input"
                   type="number"
-                  step="any"         // ← allow any decimals
-                  inputMode="decimal"// ← better mobile keyboard
+                  step="any"         
+                  inputMode="decimal"
                   min="0"
                   value={thcPercent}
                   onChange={(e) => setThcPercent(e.target.value)}
@@ -251,7 +251,7 @@ export default function EditStrainPage() {
                   id="thca"
                   className="input"
                   type="number"
-                  step="any"         // ← allow any decimals
+                  step="any"      
                   inputMode="decimal"
                   min="0"
                   value={thcaPercent}
@@ -263,18 +263,18 @@ export default function EditStrainPage() {
 
             {/* Experience fields */}
             <div>
-              <label htmlFor="effects">Effects (comma-separated)</label>
+              <label htmlFor="effects">Effects </label>
               <input
                 id="effects"
                 className="input"
                 value={effectsStr}
                 onChange={(e) => setEffectsStr(e.target.value)}
-                placeholder="relaxed, euphoric, focused"
+                placeholder="e.g., Relaxing with a slight creativity..."
               />
             </div>
 
             <div>
-              <label htmlFor="flavors">Flavors (comma-separated)</label>
+              <label htmlFor="flavors">Taste </label>
               <input
                 id="flavors"
                 className="input"
@@ -285,7 +285,7 @@ export default function EditStrainPage() {
             </div>
 
             <div>
-              <label htmlFor="aroma">Smells / Aroma (comma-separated)</label>
+              <label htmlFor="aroma">Aroma</label>
               <input
                 id="aroma"
                 className="input"
