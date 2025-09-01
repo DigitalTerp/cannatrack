@@ -14,8 +14,6 @@ export interface Strain {
   cbdPercent?: number;
   createdAt?: number;
   updatedAt?: number;
-
-  // NEW: optional experience fields stored on the cultivar doc
   effects?: string[];
   flavors?: string[];
   aroma?: string[];
