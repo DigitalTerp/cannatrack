@@ -98,8 +98,6 @@ a:hover { color: #047857; }
 }
 .site-title a { text-decoration: none; color: inherit; }
 .site-title a:hover { text-decoration: none; color: inherit; }
-
-/* Force the title to the middle grid cell so it's centered on desktop */
 .header-row .site-title { grid-column: 2; justify-self: center; }
 
 /* Desktop nav row */
@@ -107,7 +105,6 @@ a:hover { color: #047857; }
 .desktop-only { display: block; }
 @media (max-width: 720px) { .desktop-only { display: none; } }
 
-/* Optional area for auth buttons at the right of header-row */
 .header-right { justify-self: end; display: flex; align-items: center; gap: .5rem; }
 
 /* ---------- Cards ---------- */
@@ -145,8 +142,8 @@ button, .btn {
 }
 
 /* History: make Prev/Today/Next consistent */
-.btn-nav { min-width: 120px; }       /* apply to pager buttons */
-.pager-row .btn { min-width: 120px; }/* also enforce via row selector */
+.btn-nav { min-width: 120px; }       
+.pager-row .btn { min-width: 120px; }
 
 /* Logout Button in Header */
 .logout-btn {
@@ -216,6 +213,21 @@ textarea.input { min-height: 120px; }
 .icon-hamburger.is-open .bar-top { transform: translateY(5px) rotate(45deg); }
 .icon-hamburger.is-open .bar-mid { opacity: 0; }
 .icon-hamburger.is-open .bar-bot { transform: translateY(-5px) rotate(-45deg); }
+
+/* Use a dark/brand color on light, keep white on dark */
+.site-header .hamburger {
+  color: #0f172a; /* slate-900 for light header */
+}
+.site-header .hamburger:hover {
+  color: #111827;
+}
+
+@media (prefers-color-scheme: dark) {
+  .site-header .hamburger {
+    color: #ffffff; 
+  }
+}
+
 
 /* Drawer */
 .drawer {
