@@ -236,7 +236,7 @@ export default function InsightsPage() {
             <h2>Sessions<br /> ( Last 7 Days )</h2>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sessions7} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                <BarChart data={sessions7} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis allowDecimals={false} />
@@ -257,7 +257,7 @@ export default function InsightsPage() {
             <div className="subtle">Total Consumption: <strong>{badges7.totalGrams} g</strong></div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={grams7} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                <BarChart data={grams7} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
@@ -279,7 +279,7 @@ export default function InsightsPage() {
             <div className="subtle">Sessions vs. total grams, by consumption method.</div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={methodMix30} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                <BarChart data={methodMix30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="method" />
                   <YAxis />
@@ -302,7 +302,7 @@ export default function InsightsPage() {
             <div className="subtle">Sessions vs. total grams, by Indica / Hybrid / Sativa.</div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={typeMix30} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                <BarChart data={typeMix30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="type" />
                   <YAxis />
@@ -327,7 +327,7 @@ export default function InsightsPage() {
             ) : (
               <div className={styles.chartWrap}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topCultivars30} margin={{ top: 8, right: 12, bottom: 24, left: 0 }}>
+                  <BarChart data={topCultivars30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={60} />
                     <YAxis allowDecimals={false} />

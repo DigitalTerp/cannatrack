@@ -15,7 +15,7 @@ body {
   font-size: 16px;
   line-height: 1.6;
   background: #f9fafb;
-  color: #1f2937; /* slate-800 */
+  color: #1f2937; 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -80,7 +80,7 @@ a:hover { color: #047857; }
 /* Shared header row (hamburger | title | right-actions) */
 .header-row {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;   /* desktop: TRUE center */
+  grid-template-columns: 1fr auto 1fr;  
   align-items: center;
   width: 100%;
 }
@@ -88,7 +88,6 @@ a:hover { color: #047857; }
   .header-row { grid-template-columns: 56px 1fr 56px; } /* mobile: space for button */
 }
 
-/* One real H1 in header; brand link should not look like a link */
 .site-title {
   font-size: 1.125rem;
   font-weight: 800;
@@ -216,7 +215,7 @@ textarea.input { min-height: 120px; }
 
 /* Use a dark/brand color on light, keep white on dark */
 .site-header .hamburger {
-  color: #0f172a; /* slate-900 for light header */
+  color: #0f172a; 
 }
 .site-header .hamburger:hover {
   color: #111827;
@@ -227,7 +226,6 @@ textarea.input { min-height: 120px; }
     color: #ffffff; 
   }
 }
-
 
 /* Drawer */
 .drawer {
@@ -255,7 +253,6 @@ textarea.input { min-height: 120px; }
 }
 .backdrop.show { opacity: 1; pointer-events: auto; }
 
-
 .drawer-nav.btn {
   display: flex;
   width: 100%;
@@ -263,14 +260,13 @@ textarea.input { min-height: 120px; }
   min-height: 44px;
   padding: .6rem .85rem;
   align-items: center;
-  justify-content: center;   /* left-align text to match links */
+  justify-content: center; 
   border-radius: .5rem;
 }
 
 .drawer-nav .btn + .btn {
   margin-left: 0 !important;
 }
-
 
 
 /* ---------- History date + pager layout ---------- */
@@ -285,7 +281,7 @@ textarea.input { min-height: 120px; }
   gap: 0.5rem;
   flex-wrap: wrap;        /* keeps things tidy on small screens */
 }
-/* keep pager buttons consistent width */
+
 .pager-row .btn { min-width: 120px; }
 
 /* ---------- Header-specific overrides ----------
