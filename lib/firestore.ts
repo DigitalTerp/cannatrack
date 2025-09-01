@@ -1,16 +1,4 @@
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, updateDoc, where, } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Entry, Strain, StrainType } from './types';
 
@@ -19,7 +7,7 @@ const now = () => Date.now();
 const isFiniteNumber = (v: any): v is number => typeof v === 'number' && Number.isFinite(v);
 
 function stripUndefined<T>(obj: T): T {
-  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj === null || typeof obj !== 'object') return obj as T;
   if (Array.isArray(obj)) {
     const arr = (obj as unknown as any[])
       .map((v) => stripUndefined(v))
@@ -34,6 +22,7 @@ function stripUndefined<T>(obj: T): T {
   return out as T;
 }
 
+/** Accepts number or numeric string; strips "g"/"grams" if present. */
 function parseWeightToNumber(v: any): number | undefined {
   if (v == null) return undefined;
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -41,6 +30,34 @@ function parseWeightToNumber(v: any): number | undefined {
     const s = v.trim().toLowerCase().replace(/grams?/, '').replace(/g\b/, '').trim();
     const n = Number(s);
     return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+/** Convert a field to number if possible; otherwise undefined. */
+function toNum(v: any): number | undefined {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+/** Normalize to a string array (comma-separated string or array of strings). */
+function toList(v: any): string[] | undefined {
+  if (Array.isArray(v)) {
+    const out = v
+      .map((x) => (typeof x === 'string' ? x.trim() : String(x)))
+      .filter((s) => s.length > 0);
+    return out.length ? out : undefined;
+  }
+  if (typeof v === 'string') {
+    const parts = v
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    return parts.length ? parts : undefined;
   }
   return undefined;
 }
@@ -82,7 +99,7 @@ export async function upsertStrainByName(uid: string, input: UpsertStrainInput):
   const base = stripUndefined({
     name,
     nameLower,
-    name_lc: nameLower, 
+    name_lc: nameLower,
     type: input.type,
     brand: input.brand?.trim() || undefined,
     lineage: input.lineage?.trim() || undefined,
@@ -94,7 +111,6 @@ export async function upsertStrainByName(uid: string, input: UpsertStrainInput):
     aroma:   Array.isArray(input.aroma)   ? input.aroma   : undefined,
     rating:  isFiniteNumber(input.rating) ? input.rating  : undefined,
     notes:   typeof input.notes === 'string' && input.notes.trim() ? input.notes.trim() : undefined,
-
     updatedAt: now(),
   });
 
@@ -184,31 +200,47 @@ export async function createEntry(
   uid: string,
   payload: Omit<Entry, 'id' | 'createdAt' | 'updatedAt' | 'userId'>
 ): Promise<string> {
-  // normalize timestamps and weight; keep lowercased helpers
   const weight = parseWeightToNumber((payload as any).weight ?? (payload as any).dose);
-  const strainName = (payload as any).strainName?.trim?.() || '';
-  const brand = (payload as any).brand?.trim?.() || undefined;
 
-  // Ensure cultivar exists/updates if a name was provided
+  // Normalize cultivar details coming from the entry form
+  const strainName = (payload as any).strainName?.trim?.() || '';
+  const strainType = ((payload as any).strainType as StrainType) || 'Hybrid';
+  const brand      = (payload as any).brand?.trim?.() || undefined;
+  const lineage    = (payload as any).lineage?.trim?.() || undefined;
+  const flavors = toList((payload as any).flavors ?? (payload as any).taste);
+  const aroma   = toList((payload as any).aroma   ?? (payload as any).smell);
+  const effects = toList((payload as any).effects);
+  const rating  = toNum((payload as any).rating);
+  const notes   = (payload as any).notes?.trim?.() || undefined;
+  const thcPercent  = toNum((payload as any).thcPercent);
+  const thcaPercent = toNum((payload as any).thcaPercent);
+  const cbdPercent  = toNum((payload as any).cbdPercent);
+
+  // Ensure Cultivar exists/updates so Cultivars page has full data immediately
   let strainId = (payload as any).strainId as string | undefined;
   if (strainName) {
     try {
       strainId = await upsertStrainByName(uid, {
         name: strainName,
-        type: ((payload as any).strainType as StrainType) || 'Hybrid',
+        type: strainType,
         brand,
-        lineage: (payload as any).lineage?.trim?.() || undefined,
-        thcPercent: isFiniteNumber((payload as any).thcPercent) ? (payload as any).thcPercent : undefined,
-        thcaPercent: isFiniteNumber((payload as any).thcaPercent) ? (payload as any).thcaPercent : undefined,
-        cbdPercent: isFiniteNumber((payload as any).cbdPercent) ? (payload as any).cbdPercent : undefined,
+        lineage,
+        thcPercent,
+        thcaPercent,
+        cbdPercent,
+        effects,
+        flavors,
+        aroma,
+        rating,
+        notes,
       });
     } catch {
-      // ignore cultivar upsert errors so entry creation can still proceed
+      // don't block entry creation if strain upsert fails
     }
   }
 
   const data = stripUndefined({
-    ...payload,
+    ...payload,               // (no userId in the type, safe to spread first)
     userId: uid,
     strainId: strainId || (payload as any).strainId || undefined,
     weight,
@@ -217,6 +249,15 @@ export async function createEntry(
     strainNameLower: strainName ? strainName.toLowerCase() : undefined,
     brand,
     brandLower: brand ? brand.toLowerCase() : undefined,
+    lineage,
+    thcPercent,
+    thcaPercent,
+    cbdPercent,
+    effects,
+    flavors,
+    aroma,
+    rating,
+    notes,
     createdAt: now(),
     updatedAt: now(),
   });
@@ -231,9 +272,24 @@ export async function updateEntry(
   patch: Partial<Entry>
 ): Promise<void> {
   const weight = parseWeightToNumber((patch as any).weight ?? (patch as any).dose);
-  const strainName = (patch as any).strainName?.trim?.();
-  const brand = (patch as any).brand?.trim?.();
 
+  const strainName = (patch as any).strainName?.trim?.();
+  const strainType = ((patch as any).strainType as StrainType) || 'Hybrid';
+  const brand      = (patch as any).brand?.trim?.();
+  const lineage    = (patch as any).lineage?.trim?.();
+
+  const flavors = toList((patch as any).flavors ?? (patch as any).taste);
+  const aroma   = toList((patch as any).aroma   ?? (patch as any).smell);
+
+  const effects = toList((patch as any).effects);
+  const rating  = toNum((patch as any).rating);
+  const notes   = (patch as any).notes?.trim?.();
+
+  const thcPercent  = toNum((patch as any).thcPercent);
+  const thcaPercent = toNum((patch as any).thcaPercent);
+  const cbdPercent  = toNum((patch as any).cbdPercent);
+
+  // write the entry update
   const norm = stripUndefined({
     ...patch,
     weight,
@@ -241,23 +297,57 @@ export async function updateEntry(
     strainNameLower: typeof strainName === 'string' ? strainName.toLowerCase() : undefined,
     brand,
     brandLower: typeof brand === 'string' ? brand.toLowerCase() : undefined,
+    lineage,
+    thcPercent,
+    thcaPercent,
+    cbdPercent,
+    effects,
+    flavors,
+    aroma,
+    rating,
+    notes,
     updatedAt: now(),
   });
-
   await updateDoc(entryRef(uid, entryId), norm as any);
 
-  if (typeof strainName === 'string' && strainName) {
-    try {
-      await upsertStrainByName(uid, {
-        name: strainName,
-        type: ((patch as any).strainType as StrainType) || 'Hybrid',
-        brand,
-        lineage: (patch as any).lineage?.trim?.() || undefined,
-        thcPercent: isFiniteNumber((patch as any).thcPercent) ? (patch as any).thcPercent : undefined,
-        thcaPercent: isFiniteNumber((patch as any).thcaPercent) ? (patch as any).thcaPercent : undefined,
-        cbdPercent: isFiniteNumber((patch as any).cbdPercent) ? (patch as any).cbdPercent : undefined,
-      });
-    } catch {
+  // also refresh the strain doc so Cultivars shows these fields without manual editing
+  const shouldTouchStrain =
+    typeof strainName === 'string' ||
+    brand !== undefined ||
+    lineage !== undefined ||
+    thcPercent !== undefined ||
+    thcaPercent !== undefined ||
+    cbdPercent !== undefined ||
+    effects !== undefined ||
+    flavors !== undefined ||
+    aroma !== undefined ||
+    rating !== undefined ||
+    notes !== undefined;
+
+  if (shouldTouchStrain) {
+    const effectiveName =
+      typeof strainName === 'string' && strainName
+        ? strainName
+        : (patch as any).strainName || '';
+    if (effectiveName) {
+      try {
+        await upsertStrainByName(uid, {
+          name: effectiveName,
+          type: strainType,
+          brand,
+          lineage,
+          thcPercent,
+          thcaPercent,
+          cbdPercent,
+          effects,
+          flavors,
+          aroma,
+          rating,
+          notes,
+        });
+      } catch {
+        // ignore cultivar upsert errors
+      }
     }
   }
 }
