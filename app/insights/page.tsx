@@ -6,17 +6,8 @@ import { auth } from '@/lib/firebase';
 import { listEntriesForDay } from '@/lib/firestore';
 import type { Entry, Method, StrainType } from '@/lib/types';
 import styles from './insights.module.css';
-
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from 'recharts';
+import typeStyles from '@/app/strains/cultivars.module.css';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,} from 'recharts';
 
 /* ------------------------- Date helpers (local) ------------------------- */
 function startOfDayLocal(d: Date) {
@@ -73,7 +64,13 @@ function gramsOf(e: Entry) {
   return typeof e.weight === 'number' ? e.weight : 0;
 }
 
-/* Tooltip styles inline (no CSS changes needed) */
+function badgeClass(t?: StrainType) {
+  const key = (t || 'Hybrid').toLowerCase();
+  if (key === 'indica') return `${typeStyles.typeBadge} ${typeStyles['type-indica']}`;
+  if (key === 'sativa') return `${typeStyles.typeBadge} ${typeStyles['type-sativa']}`;
+  return `${typeStyles.typeBadge} ${typeStyles['type-hybrid']}`; // default Hybrid
+}
+
 const tooltipContentStyle: React.CSSProperties = {
   background: 'rgba(17,24,39,0.96)',
   border: '1px solid #374151',
@@ -305,12 +302,10 @@ export default function InsightsPage() {
           <div className="card">
             <h2>Sessions<br /> ( Last 30 Days )</h2>
             <div className="subtle"><em><strong>{range30}</strong></em></div>
-            <div className="subtle">
-              Number of sessions per day across the last thirty days.
-            </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
               <span className={`badge ${styles.badgeBig}`}>Total Sessions: {totalSessions30}</span>
             </div>
+            <div className="subtle">Number of sessions per day across the last thirty days.</div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -342,10 +337,10 @@ export default function InsightsPage() {
           <div className="card">
             <h2>Weight Consumed<br /> ( Last 30 Days )</h2>
             <div className="subtle"><em><strong>{range30}</strong></em></div>
-            <div className="subtle">Grams logged per day across the last thirty days.</div>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
               <span className={`badge ${styles.badgeBig}`}>Total: {totalGrams30} g</span>
             </div>
+            <div className="subtle">Grams logged per day across the last thirty days.</div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -377,6 +372,7 @@ export default function InsightsPage() {
           {/* Method (30 days) */}
           <div className="card">
             <h2>Consumption Method<br /> ( Last 30 Days )</h2>
+            <div className="subtle"><em><strong>{range30}</strong></em></div>
             <div className="subtle">Sessions vs. total grams, by consumption method.</div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
@@ -400,10 +396,33 @@ export default function InsightsPage() {
           {/* Type (30 days) */}
           <div className="card">
             <h2>Cultivar Type Consumed<br />( Last 30 Days )</h2>
+            <div className="subtle"><em><strong>{range30}</strong></em></div>
+
+            {/* ⬇️ labeled + colored badge using the same scheme as cultivars/daily */}
+            {preferredType === '—' ? (
+              <div className="subtle" style={{ textAlign: 'center', marginTop: '.35rem' }}>
+                No data yet.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '.5rem',
+                  marginTop: '.35rem',
+                }}
+              >
+                <span className="subtle" style={{ fontWeight: 600 }}>
+                  Most Type Consumed:
+                </span>
+                <span className={`badge ${badgeClass(preferredType as StrainType)}`}>
+                  {preferredType}
+                </span>
+              </div>
+            )}
+
             <div className="subtle">Sessions vs. total grams, by Indica / Hybrid / Sativa.</div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
-              <span className={`badge ${styles.badgeBig}`}>Most Preferred: {preferredType}</span>
-            </div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={typeMix30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
@@ -426,6 +445,7 @@ export default function InsightsPage() {
           {/* Top cultivars (30 days) */}
           <div className="card">
             <h2>Top Cultivars<br />( Last 30 Days )</h2>
+            <div className="subtle"><em><strong>{range30}</strong></em></div>
             <div className="subtle">
               Ranked by total grams consumed; bars show sessions and grams per cultivar.
             </div>
