@@ -5,7 +5,6 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { listEntriesForDay } from '@/lib/firestore';
 import type { Entry, Method, StrainType } from '@/lib/types';
-
 import styles from './insights.module.css';
 
 import {
@@ -19,7 +18,7 @@ import {
   Legend,
 } from 'recharts';
 
-/* ------------------------- Date Helpers (local) ------------------------- */
+/* ------------------------- Date helpers (local) ------------------------- */
 function startOfDayLocal(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
@@ -40,11 +39,23 @@ function dayKey(d: Date) {
 function shortLabel(d: Date) {
   return d.toLocaleDateString(undefined, { weekday: 'short' });
 }
+function mdLabel(d: Date) {
+  return d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }); // e.g., 9/6
+}
+function formatRangeNDays(n: number): string {
+  const days = lastNDaysLocal(n);
+  const start = days[0];
+  const end = days[days.length - 1];
+  const fmtMD = (x: Date) => x.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  if (start.getFullYear() === end.getFullYear()) {
+    return `${fmtMD(start)} – ${fmtMD(end)}, ${end.getFullYear()}`;
+  }
+  const fmtMDY = (x: Date) =>
+    x.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${fmtMDY(start)} – ${fmtMDY(end)}`;
+}
 
-/* --------------------------- Graph Utilities & Colors --------------------------- */
-const METHOD_LIST: Method[] = ['Pre-Roll', 'Bong', 'Pipe', 'Vape', 'Dab'];
-const TYPE_LIST: StrainType[] = ['Indica', 'Hybrid', 'Sativa'];
-
+/* --------------------------- Colors & helpers --------------------------- */
 const COLORS = {
   emerald: '#059669',
   blue: '#3b82f6',
@@ -62,17 +73,18 @@ function gramsOf(e: Entry) {
   return typeof e.weight === 'number' ? e.weight : 0;
 }
 
+/* Tooltip styles inline (no CSS changes needed) */
 const tooltipContentStyle: React.CSSProperties = {
-  background: 'rgba(17,24,39,0.96)', 
-  border: '1px solid #374151',       
-  color: '#E5E7EB',                  
+  background: 'rgba(17,24,39,0.96)',
+  border: '1px solid #374151',
+  color: '#E5E7EB',
   borderRadius: 8,
   padding: '8px 10px',
 };
 const tooltipLabelStyle: React.CSSProperties = { color: '#9CA3AF', marginBottom: 4 };
-const tooltipItemStyle: React.CSSProperties = { color: '#E5E7EB' }; 
+const tooltipItemStyle: React.CSSProperties = { color: '#E5E7EB' };
 
-/* ---------------------------- Page Components ---------------------------- */
+/* ---------------------------- Page ---------------------------- */
 export default function InsightsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,9 +132,10 @@ export default function InsightsPage() {
     run();
   }, [user]);
 
-  const bigBadge: React.CSSProperties = { fontSize: '.95rem', padding: '.4rem .7rem' };
+  const range7 = useMemo(() => formatRangeNDays(7), [weekEntries]);
+  const range30 = useMemo(() => formatRangeNDays(30), [monthEntries]);
 
-  /* ----------- Weight Consumption ( 7-Day ) Component  ----------- */
+  /* ----------- 7-Day sessions & grams (for the stats bar) ----------- */
   const sessions7 = useMemo(() => {
     const days = lastNDaysLocal(7);
     return days.map((d) => {
@@ -147,7 +160,7 @@ export default function InsightsPage() {
     return { totalSessions, totalGrams };
   }, [sessions7, grams7]);
 
-  /* ----------- Consumption Method ( 30 Days ) Components ----------- */
+  /* ----------- 30-Day aggregates ----------- */
   const flat30 = useMemo(() => Object.values(monthEntries).flat(), [monthEntries]);
 
   const methodMix30 = useMemo(() => {
@@ -190,16 +203,61 @@ export default function InsightsPage() {
     }));
   }, [flat30]);
 
-  /* ----------- Top Cultivars (30 Days) Component ----------- */
+  // Most preferred type (by grams) for badge
+  const preferredType = useMemo(() => {
+    if (typeMix30.length === 0) return '—';
+    const max = [...typeMix30].sort((a, b) => b.grams - a.grams)[0];
+    if (!max || (max.grams ?? 0) === 0) return '—';
+    return max.type;
+  }, [typeMix30]);
+
+  /* ----------- Sessions & Grams over last 30 days (only days with data) ----------- */
+  const sessions30All = useMemo(() => {
+    const days = lastNDaysLocal(30);
+    return days.map((d) => {
+      const key = dayKey(d);
+      const count = (monthEntries[key] || []).length;
+      return { name: mdLabel(d), count };
+    });
+  }, [monthEntries]);
+
+  const sessions30 = useMemo(() => {
+    const nonZero = sessions30All.filter((x) => x.count > 0);
+    return nonZero.length ? nonZero : sessions30All;
+  }, [sessions30All]);
+
+  const grams30All = useMemo(() => {
+    const days = lastNDaysLocal(30);
+    return days.map((d) => {
+      const key = dayKey(d);
+      const grams = sum((monthEntries[key] || []).map(gramsOf));
+      return { name: mdLabel(d), grams: Number(grams.toFixed(2)) };
+    });
+  }, [monthEntries]);
+
+  const grams30 = useMemo(() => {
+    const nonZero = grams30All.filter((x) => x.grams > 0);
+    return nonZero.length ? nonZero : grams30All;
+  }, [grams30All]);
+
+  const totalSessions30 = useMemo(() => sum(sessions30.map((x) => x.count)), [sessions30]);
+  const totalGrams30 = useMemo(
+    () => Number(sum(grams30.map((x) => x.grams)).toFixed(2)),
+    [grams30]
+  );
+
+  /* ----------- Top Cultivars (30 Days) — sessions + grams ----------- */
   const topCultivars30 = useMemo(() => {
-    const countMap = new Map<string, number>();
+    const m = new Map<string, { count: number; grams: number }>();
     for (const e of flat30) {
-      const key = (e.strainName || 'Unknown').trim();
-      countMap.set(key, (countMap.get(key) || 0) + 1);
+      const name = (e.strainName || 'Unknown').trim();
+      const g = gramsOf(e);
+      const prev = m.get(name) || { count: 0, grams: 0 };
+      m.set(name, { count: prev.count + 1, grams: prev.grams + g });
     }
-    return Array.from(countMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
+    return Array.from(m.entries())
+      .map(([name, v]) => ({ name, count: v.count, grams: Number(v.grams.toFixed(2)) }))
+      .sort((a, b) => b.grams - a.grams)
       .slice(0, 5);
   }, [flat30]);
 
@@ -211,17 +269,29 @@ export default function InsightsPage() {
     );
   }
 
+  const manySessionBars = sessions30.length > 10;
+  const manyGramBars = grams30.length > 10;
+
   return (
     <div className="container">
       <div className="page-hero">
         <h1>Your Consumption Log</h1>
+        <p className="subtle">
+          This page summarizes your recent sessions. How often you consumed, how much you logged,
+          which methods you favored, and the cultivar types you reached for most.
+        </p>
       </div>
-      <div className="card" style={{ padding: '.75rem 1rem', marginTop: '-.5rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-          <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Last 7 Days</h2>
-          <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-            <span className="badge" style={bigBadge}>Sessions: {badges7.totalSessions}</span>
-            <span className="badge" style={bigBadge}>Weight: {badges7.totalGrams} g</span>
+
+      {/* Last 7 Days stats bar */}
+      <div className={`card ${styles.statsBarCard}`}>
+        <div className={styles.statsBar}>
+          <div>
+            <h2>Last 7 Days</h2>
+            <div className="subtle"><em><strong>{range7}</strong></em></div>
+          </div>
+          <div className={styles.statsBadges}>
+            <span className={`badge ${styles.badgeBig}`}>Sessions: {badges7.totalSessions}</span>
+            <span className={`badge ${styles.badgeBig}`}>Weight: {badges7.totalGrams} g</span>
           </div>
         </div>
       </div>
@@ -231,14 +301,31 @@ export default function InsightsPage() {
 
       {!loading && !err && (
         <div className={styles.dashboardGrid}>
-          {/* --- Last 7 Days Sessions --- */}
+          {/* Sessions (30 days) */}
           <div className="card">
-            <h2>Sessions<br /> ( Last 7 Days )</h2>
+            <h2>Sessions<br /> ( Last 30 Days )</h2>
+            <div className="subtle"><em><strong>{range30}</strong></em></div>
+            <div className="subtle">
+              Number of sessions per day across the last thirty days.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
+              <span className={`badge ${styles.badgeBig}`}>Total Sessions: {totalSessions30}</span>
+            </div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sessions7} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
+                <BarChart
+                  data={sessions30}
+                  margin={{ top: 8, right: 0, bottom: 8, left: 0 }}
+                  barCategoryGap={sessions30.length >= 8 ? '25%' : '35%'}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
+                  <XAxis
+                    dataKey="name"
+                    interval={manySessionBars ? 'preserveStartEnd' : 0}
+                    angle={manySessionBars ? -25 : 0}
+                    textAnchor={manySessionBars ? 'end' : 'middle'}
+                    height={manySessionBars ? 56 : undefined}
+                  />
                   <YAxis allowDecimals={false} />
                   <Tooltip
                     contentStyle={tooltipContentStyle}
@@ -251,15 +338,29 @@ export default function InsightsPage() {
             </div>
           </div>
 
-          {/* --- Last 7 Days Weight Consumed Graph --- */}
+          {/* Weight (30 days) */}
           <div className="card">
-            <h2>Weight Consumed<br /> ( Over 7 Days )</h2>
-            <div className="subtle">Total Consumption: <strong>{badges7.totalGrams} g</strong></div>
+            <h2>Weight Consumed<br /> ( Last 30 Days )</h2>
+            <div className="subtle"><em><strong>{range30}</strong></em></div>
+            <div className="subtle">Grams logged per day across the last thirty days.</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
+              <span className={`badge ${styles.badgeBig}`}>Total: {totalGrams30} g</span>
+            </div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={grams7} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
+                <BarChart
+                  data={grams30}
+                  margin={{ top: 8, right: 0, bottom: 8, left: 0 }}
+                  barCategoryGap={grams30.length >= 8 ? '25%' : '35%'}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
+                  <XAxis
+                    dataKey="name"
+                    interval={manyGramBars ? 'preserveStartEnd' : 0}
+                    angle={manyGramBars ? -25 : 0}
+                    textAnchor={manyGramBars ? 'end' : 'middle'}
+                    height={manyGramBars ? 56 : undefined}
+                  />
                   <YAxis />
                   <Tooltip
                     contentStyle={tooltipContentStyle}
@@ -267,13 +368,13 @@ export default function InsightsPage() {
                     itemStyle={tooltipItemStyle}
                     formatter={(val: any) => [`${val} g`, 'Weight']}
                   />
-                  <Bar dataKey="grams" fill={COLORS.blue} />
+                  <Bar dataKey="grams" name="Grams" fill={COLORS.blue} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* --- Consumption Method Graph ( 30 Days ) --- */}
+          {/* Method (30 days) */}
           <div className="card">
             <h2>Consumption Method<br /> ( Last 30 Days )</h2>
             <div className="subtle">Sessions vs. total grams, by consumption method.</div>
@@ -296,10 +397,13 @@ export default function InsightsPage() {
             </div>
           </div>
 
-          {/* --- Top Consumed Type Graph ( 30 Days ) --- */}
+          {/* Type (30 days) */}
           <div className="card">
             <h2>Cultivar Type Consumed<br />( Last 30 Days )</h2>
             <div className="subtle">Sessions vs. total grams, by Indica / Hybrid / Sativa.</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
+              <span className={`badge ${styles.badgeBig}`}>Most Preferred: {preferredType}</span>
+            </div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={typeMix30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
@@ -319,25 +423,33 @@ export default function InsightsPage() {
             </div>
           </div>
 
-          {/* --- Top Cultivars Graph ( 30 Days ) --- */}
+          {/* Top cultivars (30 days) */}
           <div className="card">
             <h2>Top Cultivars<br />( Last 30 Days )</h2>
+            <div className="subtle">
+              Ranked by total grams consumed; bars show sessions and grams per cultivar.
+            </div>
             {topCultivars30.length === 0 ? (
               <div className="subtle">No data yet.</div>
             ) : (
-              <div className={styles.chartWrap}>
+              <div className={`${styles.chartWrap} ${styles.chartTall}`}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topCultivars30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
+                  <BarChart data={topCultivars30} margin={{ top: 8, right: 8, bottom: 24, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={60} />
-                    <YAxis allowDecimals={false} />
+                    <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={56} />
+                    <YAxis yAxisId="left" allowDecimals={false} />
+                    <YAxis yAxisId="right" orientation="right" />
                     <Tooltip
                       contentStyle={tooltipContentStyle}
                       labelStyle={tooltipLabelStyle}
                       itemStyle={tooltipItemStyle}
+                      formatter={(val: any, name: string) =>
+                        name === 'Grams' ? [`${val} g`, 'Grams'] : [val, 'Sessions']
+                      }
                     />
                     <Legend />
-                    <Bar dataKey="count" name="Sessions" fill={COLORS.indigo} />
+                    <Bar yAxisId="left" dataKey="count" name="Sessions" fill={COLORS.indigo} />
+                    <Bar yAxisId="right" dataKey="grams" name="Grams" fill={COLORS.cyan} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

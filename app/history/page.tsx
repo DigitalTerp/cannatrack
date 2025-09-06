@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
@@ -85,6 +85,13 @@ export default function HistoryPage() {
     }
   }
 
+  /* ---------- NEW: day totals (sessions & total grams) ---------- */
+  const totals = useMemo(() => {
+    const sessions = entries.length;
+    const grams = entries.reduce((sum, e) => sum + (typeof e.weight === 'number' ? e.weight : 0), 0);
+    return { sessions, grams: Number(grams.toFixed(2)) };
+  }, [entries]);
+
   return (
     <div className="container">
       <div className="page-hero" style={{ marginBottom: '0.75rem' }}>
@@ -116,6 +123,16 @@ export default function HistoryPage() {
           </button>
         </div>
       </div>
+
+      {!loading && (
+      <div className={`card ${styles.totalsCard}`}>
+      <div className={styles.totalsWrap}>
+          <span className="badge">Sessions: {totals.sessions}</span>
+          <span className="badge">Total Weight: {totals.grams} g</span>
+        </div>
+      </div>
+      )}
+
 
       {err && <div className="card"><p className="error">{err}</p></div>}
       {loading && <div className="card">Loading…</div>}

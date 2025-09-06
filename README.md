@@ -93,3 +93,45 @@ MIT — use, remix, and learn freely. 🌿
 As a judge and a tinkerer, I wanted a tracker that adapts to me—fast to log, easy to search, and expressive enough to capture what actually matters: how it smelled, how it tasted, how it felt, and whether it’s worth revisiting.
 
 Training complete. First lightsaber constructed. Time to explore the galaxy (of cultivars)—one personalized log at a time.
+
+## *** Updates
+
+- **September 6, 2025**
+
+- **History Page**
+
+Added per-day totals beneath the date controls:
+
+Total Sessions for the selected day
+
+Total Weight (g) consumed for the selected day
+
+Cleaned up the entry detail layout (centered, simpler text presentation, consistent actions).
+
+- **Insights/Analytics**
+
+Added an intro paragraph under Your Consumption Log explaining what the page shows.
+
+- **Last 7 Days stats bar**
+
+Added Display for Date Range
+
+Badges for total sessions and total grams
+
+Sessions and Weight Consumed charts are now Last 30 Days (was 7).
+
+Subtitles added to every chart to better explain what you’re seeing.
+
+- **Badges added**
+
+Sessions (30d): total sessions badge + date range
+
+Weight Consumed (30d): total grams badge + date range
+
+Cultivar Type Consumed (30d): Most Preferred Type badge (based on recent data)
+
+Top Cultivars (Last 30 Days): dual-series bar chart shows sessions and grams per cultivar.
+
+- **Chart UX polish**
+
+Improved spacing/margins and centered headings/subtext on mobile; better axis label readability.
