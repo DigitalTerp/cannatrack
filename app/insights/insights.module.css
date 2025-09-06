@@ -18,7 +18,7 @@
 }
 .dashboardGrid :global(.card .subtle) {
   text-align: center;
-  display: block; /* ensure text-align applies cleanly */
+  display: block; 
 }
 
 /* ==== Chart wrappers ==== */
@@ -137,7 +137,7 @@
 /* Dedicated centered row for per-card badges (under dates) */
 .badgeRowCenter {
   display: flex;
-  justify-content: center; /* centered on ALL viewports */
+  justify-content: center;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
@@ -146,4 +146,17 @@
 .badgeBig {
   font-size: 0.95rem;
   padding: 0.4rem 0.7rem;
+}
+
+/* Centered label + badge row used under “Cultivar Type Consumed” */
+.centerRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .35rem;
+}
+
+.subtleStrong {
+  font-weight: 600;
 }
