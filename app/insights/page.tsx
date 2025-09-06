@@ -438,9 +438,7 @@ export default function InsightsPage() {
                 
             {topCultivarBadge && (
               <div className={styles.centerRow}>
-                <span className={`subtle ${styles.subtleStrong}`}>
-        Top Cultivar Strain:
-                </span>
+                <span className={`subtle ${styles.subtleStrong}`}> Top Cultivar: </span>
                   <span className={`badge ${badgeClass(topCultivarBadge.type as StrainType)}`}>
                     {topCultivarBadge.name}
                   </span>
