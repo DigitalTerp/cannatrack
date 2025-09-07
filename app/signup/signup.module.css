@@ -74,7 +74,7 @@
   .label { color: #e2e8f0; }
 }
 
-/* Primary submit button: slight gradient tweak, same theme */
+/* Primary submit button */
 .submitBtn {
   width: 60%;
   display: inline-flex;
@@ -95,54 +95,54 @@
 .submitBtn:active { transform: translateY(1px); }
 .submitBtn:disabled { opacity: .6; cursor: not-allowed; }
 
-/* Container for secondary buttons */
+/* Secondary actions container */
 .secondaryBtnsContainer {
   display: flex;
   align-items: stretch;
   justify-content: center;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 2rem;   /* a bit more top space on signup */
   flex-wrap: wrap;
 }
 
-/* Make both secondary buttons the same size & look (works for <button> and <a>) */
+/* Equal widths by default */
 .secondaryBtnsContainer > * {
-  flex: 1 1 240px;       /* equal width columns on larger screens */
+  flex: 1 1 240px;
   max-width: 280px;
 }
 
 @media (max-width: 520px) {
   .secondaryBtnsContainer > * {
-    flex: 1 1 100%;      /* full width on small screens */
+    flex: 1 1 100%;
     max-width: none;
   }
 }
 
+/* Secondary button look */
 .cardButtonSecondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: .4rem;
-  width: 100%;           /* ensure equal width */
-  min-height: 44px;      /* good tap target */
+  width: 100%;
+  min-height: 44px;
   padding: .55rem .9rem;
   border-radius: .65rem;
   font-weight: 600;
-  font-size: 1rem;       /* consistent size for both */
+  font-size: 1rem;
   line-height: 1;
   text-decoration: none;
   cursor: pointer;
 
-  /* themed outline style */
-  color: #0f766e;             /* teal-700 */
-  border: 1px solid #34d399;  /* emerald-400 */
+  color: #0f766e;
+  border: 1px solid #34d399;
   background: rgba(52, 211, 153, 0.06);
   transition: background .15s ease, border-color .15s ease, color .15s ease, transform .06s ease;
 }
 .cardButtonSecondary:hover {
-  background: rgba(59, 130, 246, 0.08); /* subtle blue tint on hover */
-  border-color: #60a5fa; /* blue-400 */
-  color: #1e40af;        /* blue-800 */
+  background: rgba(59, 130, 246, 0.08);
+  border-color: #60a5fa;
+  color: #1e40af;
 }
 .cardButtonSecondary:active {
   transform: translateY(1px);
@@ -150,15 +150,21 @@
 
 @media (prefers-color-scheme: dark) {
   .cardButtonSecondary {
-    color: #93c5fd;            /* blue-300 */
-    border-color: #60a5fa;     /* blue-400 */
-    background: rgba(37, 99, 235, 0.12); /* blue-600 tint */
+    color: #93c5fd;
+    border-color: #60a5fa;
+    background: rgba(37, 99, 235, 0.12);
   }
   .cardButtonSecondary:hover {
-    background: rgba(16, 185, 129, 0.14); /* emerald tint */
-    border-color: #34d399; /* emerald-400 */
-    color: #6ee7b7;        /* emerald-300 */
+    background: rgba(16, 185, 129, 0.14);
+    border-color: #34d399;
+    color: #6ee7b7;
   }
+}
+
+.secondaryBtnsContainer > *:only-child {
+  margin-top: 1rem;
+  padding-block: .7rem;
+  max-width: 320px;
 }
 
 .errorBox, .infoBox {

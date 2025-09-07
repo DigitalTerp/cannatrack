@@ -96,42 +96,78 @@ Training complete. First lightsaber constructed. Time to explore the galaxy (of 
 
 ## *** Updates
 
-- **September 6, 2025**
+**September 6, 2025** Insights, History, Tracker, Authentacticion Polish
 
-- **History Page**
+Insights
 
-Added per-day totals beneath the date controls:
+-** Switched Sessions and Weight Consumed to Last 30 Days (was 7).
 
-Total Sessions for the selected day
+-** Added date ranges under each chart title (e.g., Sep 1 – Sep 30, 2025).
 
-Total Weight (g) consumed for the selected day
+-** Added total badges:
 
-Cleaned up the entry detail layout (centered, simpler text presentation, consistent actions).
+-** Sessions chart: Total Sessions.
 
-- **Insights/Analytics**
+-** Weight chart: Total in grams.
 
-Added an intro paragraph under Your Consumption Log explaining what the page shows.
+-** Added “Most Type Consumed” badge to Cultivar Type Consumed (Indica/Hybrid/Sativa), using the same color scheme as cultivar/type badges elsewhere.
 
-- **Last 7 Days stats bar**
+-** Added “Top Cultivar Strain” badge (shows the top strain name; badge color reflects its type).
 
-Added Display for Date Range
+-** Improved chart readability:
 
-Badges for total sessions and total grams
+-** Dynamic bar spacing when there are many days.
 
-Sessions and Weight Consumed charts are now Last 30 Days (was 7).
+-** Tick label rotation when needed.
 
-Subtitles added to every chart to better explain what you’re seeing.
+-** Extra chart height where labels/legends require it.
 
-- **Badges added**
+-** Layout & copy:
 
-Sessions (30d): total sessions badge + date range
+-** Intro paragraph under “Your Consumption Log”.
 
-Weight Consumed (30d): total grams badge + date range
+-** Centered headings/subtitles/badges on mobile (and optionally centered on desktop for a consistent dashboard feel).
 
-Cultivar Type Consumed (30d): Most Preferred Type badge (based on recent data)
+-** More “breathing room” around charts.
 
-Top Cultivars (Last 30 Days): dual-series bar chart shows sessions and grams per cultivar.
+History
 
-- **Chart UX polish**
+-** Added daily summary under the controls: Total sessions and Total grams for the selected day.
 
-Improved spacing/margins and centered headings/subtext on mobile; better axis label readability.
+-** Streamlined entry cards layout to read more like clean key/value details (less “chip/bubble” chrome).
+
+-** Tracker
+
+-** New greeting (“Hi, {name}!”) with full date under “Today”.
+
+-** Shows Amount Consumed Today with a centered badge.
+
+-** Mobile UX: centered entry titles/badges/buttons; Log Session button is full-width on small screens.
+
+Cultivars
+
+-** Added a subtitle under the page title explaining the page purpose (log of all consumed cultivars, editable details, etc.).
+
+Auth (Login / Sign Up)
+
+-** Split the combined form into separate Login and Sign Up pages with unified styling.
+
+-** Sign Up now collects Full Name and Username and persists to users/{uid} in Firestore.
+
+-** Equalized secondary button sizes (e.g., Create Account / Forgot Password), refined colors to match theme.
+
+Main (Landing)
+
+-** Sticky bottom CTA on mobile (“Login to Start”)—full-width on small screens; inline on desktop.
+
+-** Centered hero content on mobile.
+
+Styles / CSS Modules
+
+-** insights.module.css: stats bar spacing, centered mobile layout, chart “breathing room,” tall charts for rotated labels, consistent badge sizing.
+
+-** DailyLog.module.css: mobile centering for name line, meta chips, and action buttons; full-width “Log Session” button on small screens.
+
+-**tracker.module.css: greeting/date/consumed-today sections centered and tidy on mobile, consistent spacing.
+
+General polish to align badges and headings across pages.

@@ -82,3 +82,19 @@
   cursor: pointer;
 }
 .editLink:hover { opacity: .8; }
+
+/* Page hero */
+.pageTitle {
+  margin-top: 0;
+}
+
+.pageSubtitle {
+  margin: 0.2rem 0 0.6rem;
+}
+
+/* Per-card action row (replaces inline justifyContent) */
+.cardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

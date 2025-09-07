@@ -1,0 +1,34 @@
+.pageHero {
+  text-align: center;
+}
+
+.greeting {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.dateLine {
+  margin-top: 0.15rem;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.amountRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  flex-wrap: wrap; 
+}
+
+.amountLabel {
+  font-weight: 600;
+}
+@media (max-width: 420px) {
+  .amountRow :global(.badge) {
+    font-size: 0.9rem;
+    line-height: 1.1;
+  }
+}

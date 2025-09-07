@@ -96,7 +96,7 @@ export default function CultivarsPage() {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return strains;
-    return strains.filter(s =>
+    return strains.filter((s) =>
       s.name.toLowerCase().includes(term) ||
       (s.brand ?? '').toLowerCase().includes(term) ||
       (s.lineage ?? '').toLowerCase().includes(term)
@@ -127,7 +127,7 @@ export default function CultivarsPage() {
     if (!ok) return;
     try {
       await deleteStrain(uid, id);
-      setStrains(prev => prev.filter(s => s.id !== id));
+      setStrains((prev) => prev.filter((s) => s.id !== id));
     } catch (e: any) {
       alert(e?.message || 'Remove failed.');
     }
@@ -137,12 +137,23 @@ export default function CultivarsPage() {
     router.push(`/strains/${id}/edit`);
   };
 
-  if (!authReady) return <div className="container"><div className="card">Loading…</div></div>;
+  if (!authReady) {
+    return (
+      <div className="container">
+        <div className="card">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="container">
       <div className="page-hero">
-        <h1 style={{ marginTop: 0 }}>Cultivars</h1>
+        <h1 className={styles.pageTitle}>Cultivars</h1>
+        <p className={`subtle ${styles.pageSubtitle}`}>
+          A log of every Cultivar you’ve Consumed. 
+          <br></br>Click <em>Edit</em> to
+          update details or <em>Remove</em> to remove an item from your library.
+        </p>
         <div className="actions">
           <input
             className="input"
@@ -154,9 +165,17 @@ export default function CultivarsPage() {
       </div>
 
       {loading && <div className="card">Loading your cultivar library…</div>}
-      {err && <div className="card"><p className="error">{err}</p></div>}
+      {err && (
+        <div className="card">
+          <p className="error">{err}</p>
+        </div>
+      )}
       {!loading && !err && sorted.length === 0 && (
-        <div className="card"><p className="subtle" style={{ margin: 0 }}>No cultivars match your search.</p></div>
+        <div className="card">
+          <p className="subtle" style={{ margin: 0 }}>
+            No cultivars match your search.
+          </p>
+        </div>
       )}
 
       <div className={styles.grid}>
@@ -166,25 +185,40 @@ export default function CultivarsPage() {
           const last = meta?.latest;
 
           // Prefer cultivar fields; fallback to latest entry fields
-          const rating = (typeof s.rating === 'number')
-            ? s.rating
-            : (typeof last?.rating === 'number' ? last.rating : undefined);
+          const rating =
+            typeof s.rating === 'number'
+              ? s.rating
+              : typeof last?.rating === 'number'
+              ? last.rating
+              : undefined;
 
-          const effects = (Array.isArray(s.effects) && s.effects.length > 0)
-            ? s.effects
-            : (Array.isArray(last?.effects) ? last.effects : []);
+          const effects =
+            Array.isArray(s.effects) && s.effects.length > 0
+              ? s.effects
+              : Array.isArray(last?.effects)
+              ? last.effects
+              : [];
 
-          const flavors = (Array.isArray(s.flavors) && s.flavors.length > 0)
-            ? s.flavors
-            : (Array.isArray(last?.flavors) ? last.flavors : []);
+          const flavors =
+            Array.isArray(s.flavors) && s.flavors.length > 0
+              ? s.flavors
+              : Array.isArray(last?.flavors)
+              ? last.flavors
+              : [];
 
-          const aroma = (Array.isArray(s.aroma) && s.aroma.length > 0)
-            ? s.aroma
-            : (Array.isArray(last?.aroma) ? last.aroma : []);
+          const aroma =
+            Array.isArray(s.aroma) && s.aroma.length > 0
+              ? s.aroma
+              : Array.isArray(last?.aroma)
+              ? last.aroma
+              : [];
 
-          const notes = (typeof s.notes === 'string' && s.notes.trim() !== '')
-            ? s.notes
-            : (typeof last?.notes === 'string' ? last.notes : undefined);
+          const notes =
+            typeof s.notes === 'string' && s.notes.trim() !== ''
+              ? s.notes
+              : typeof last?.notes === 'string'
+              ? last.notes
+              : undefined;
 
           return (
             <div className={`card ${styles.cultivarCard}`} key={s.id}>
@@ -211,17 +245,23 @@ export default function CultivarsPage() {
 
                 <div className={styles.kvRow}>
                   <span className={styles.kvLabel}>Rating</span>
-                  <span className={styles.kvValue}>{rating !== undefined ? `${rating}/10` : '...'}</span>
+                  <span className={styles.kvValue}>
+                    {rating !== undefined ? `${rating}/10` : '...'}
+                  </span>
                 </div>
 
                 <div className={styles.kvRow}>
                   <span className={styles.kvLabel}>Effects</span>
-                  <span className={styles.kvValue}>{effects.length ? effects.join(', ') : '...'}</span>
+                  <span className={styles.kvValue}>
+                    {effects.length ? effects.join(', ') : '...'}
+                  </span>
                 </div>
 
                 <div className={styles.kvRow}>
                   <span className={styles.kvLabel}>Flavors</span>
-                  <span className={styles.kvValue}>{flavors.length ? flavors.join(', ') : '...'}</span>
+                  <span className={styles.kvValue}>
+                    {flavors.length ? flavors.join(', ') : '...'}
+                  </span>
                 </div>
 
                 <div className={styles.kvRow}>
@@ -240,10 +280,13 @@ export default function CultivarsPage() {
                 </div>
               </div>
 
-              <div className={styles.actions} style={{ justifyContent: 'space-between' }}>
+              <div className={`${styles.actions} ${styles.cardActions}`}>
                 <a
                   href={`/strains/${s.id}/edit`}
-                  onClick={(e) => { e.preventDefault(); handleEdit(s.id); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleEdit(s.id);
+                  }}
                   aria-label={`Edit ${s.name}`}
                 >
                   Edit
