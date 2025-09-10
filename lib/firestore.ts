@@ -1,4 +1,16 @@
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, updateDoc, where, } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { db } from './firebase';
 import type { Entry, Strain, StrainType } from './types';
 
@@ -34,6 +46,23 @@ function parseWeightToNumber(v: any): number | undefined {
   return undefined;
 }
 
+/** Accepts number or numeric string; strips "mg"/"milligram(s)" if present. */
+function parseMgToNumber(v: any): number | undefined {
+  if (v == null) return undefined;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+  if (typeof v === 'string') {
+    const s = v
+      .trim()
+      .toLowerCase()
+      .replace(/milligrams?/, '')
+      .replace(/\bmg\b/, '')
+      .trim();
+    const n = Number(s);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
 /** Convert a field to number if possible; otherwise undefined. */
 function toNum(v: any): number | undefined {
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -60,6 +89,42 @@ function toList(v: any): string[] | undefined {
     return parts.length ? parts : undefined;
   }
   return undefined;
+}
+
+/** Indica/Hybrid/Sativa */
+function normalizeStrainType(v: any): StrainType | undefined {
+  if (typeof v !== 'string') return undefined;
+  const s = v.trim().toLowerCase();
+  if (s === 'indica') return 'Indica';
+  if (s === 'sativa') return 'Sativa';
+  if (s === 'hybrid') return 'Hybrid';
+  return undefined;
+}
+
+/** Edible category: Chocolate/Gummy/Pill/Beverage/Other */
+type EdibleCategory = 'Chocolate' | 'Gummy' | 'Pill' | 'Beverage' | 'Other';
+function normalizeEdibleCategory(v: any): EdibleCategory | undefined {
+  if (typeof v !== 'string') return undefined;
+  const s = v.trim().toLowerCase();
+  if (!s) return undefined;
+  if (s.startsWith('choc')) return 'Chocolate';
+  if (s.startsWith('gum')) return 'Gummy';
+  if (s.startsWith('pill') || s.startsWith('cap')) return 'Pill';
+  if (s.startsWith('bev') || s.startsWith('drink')) return 'Beverage';
+  if (s === 'other') return 'Other';
+  return undefined;
+}
+
+/** Best-effort edible category from multiple possible field names. */
+function coerceEdibleCategory(raw: any): EdibleCategory | undefined {
+  // Try known fields in priority order; ignore I/H/S strings accidentally saved into edibleType
+  return (
+    normalizeEdibleCategory(raw?.edibleType) ||
+    normalizeEdibleCategory(raw?.edibleKind) ||
+    normalizeEdibleCategory(raw?.edibleForm) ||
+    normalizeEdibleCategory(raw?.edibleCategory) ||
+    undefined
+  );
 }
 
 /* --------------------------- refs/helpers --------------------------- */
@@ -194,17 +259,25 @@ export async function deleteStrain(uid: string, strainId: string): Promise<void>
 /* ------------------------------- ENTRIES ------------------------------- */
 
 /**
- * Create a new entry (session) and ensure its cultivar exists/updates.
- * Note: userId is derived from `uid` and set internally. */
+ * Create a new entry (session).
+ * - Smokeables: behaves like before (and upserts cultivar).
+ * - Edibles: saves edible fields and **does not** upsert cultivar.
+ */
 export async function createEntry(
   uid: string,
   payload: Omit<Entry, 'id' | 'createdAt' | 'updatedAt' | 'userId'>
 ): Promise<string> {
-  const weight = parseWeightToNumber((payload as any).weight ?? (payload as any).dose);
+  const methodStr = String((payload as any).method || '').trim();
+  const isEdible =
+    methodStr.toLowerCase() === 'edible' || (payload as any).isEdibleSession === true;
 
-  // Normalize cultivar details coming from the entry form
-  const strainName = (payload as any).strainName?.trim?.() || '';
-  const strainType = ((payload as any).strainType as StrainType) || 'Hybrid';
+  const weight = !isEdible
+    ? parseWeightToNumber((payload as any).weight ?? (payload as any).dose)
+    : undefined;
+
+  // Normalize cultivar details (used for smokeables only)
+  const strainNameRaw = (payload as any).strainName?.trim?.() || '';
+  const strainType = normalizeStrainType((payload as any).strainType) || 'Hybrid';
   const brand      = (payload as any).brand?.trim?.() || undefined;
   const lineage    = (payload as any).lineage?.trim?.() || undefined;
   const flavors = toList((payload as any).flavors ?? (payload as any).taste);
@@ -216,12 +289,21 @@ export async function createEntry(
   const thcaPercent = toNum((payload as any).thcaPercent);
   const cbdPercent  = toNum((payload as any).cbdPercent);
 
-  // Ensure Cultivar exists/updates so Cultivars page has full data immediately
+  // ---- Edible-specific fields ----
+  const edibleName = (payload as any).edibleName?.trim?.() || undefined;
+  // CATEGORY (Chocolate/Gummy/...) goes into edibleType (and mirrored to edibleKind)
+  const edibleCategory: EdibleCategory | undefined =
+    coerceEdibleCategory(payload as any) ||
+    normalizeEdibleCategory((payload as any).edibleType) || // if caller already sends proper category
+    undefined;
+  const edibleMg = parseMgToNumber((payload as any).edibleMg ?? (payload as any).dose ?? (payload as any).mg);
+
+  // Upsert cultivar ONLY for smokeables and when we have a name
   let strainId = (payload as any).strainId as string | undefined;
-  if (strainName) {
+  if (!isEdible && strainNameRaw) {
     try {
       strainId = await upsertStrainByName(uid, {
-        name: strainName,
+        name: strainNameRaw,
         type: strainType,
         brand,
         lineage,
@@ -240,13 +322,16 @@ export async function createEntry(
   }
 
   const data = stripUndefined({
-    ...payload,               // (no userId in the type, safe to spread first)
+    ...payload,
     userId: uid,
-    strainId: strainId || (payload as any).strainId || undefined,
-    weight,
     time: isFiniteNumber((payload as any).time) ? (payload as any).time : now(),
-    strainName,
-    strainNameLower: strainName ? strainName.toLowerCase() : undefined,
+    method: methodStr || (isEdible ? 'Edible' : (payload as any).method) || 'Pre-Roll',
+
+    // --- Common (kept on entry) ---
+    strainId: !isEdible ? (strainId || (payload as any).strainId || undefined) : undefined,
+    strainName: !isEdible ? strainNameRaw : undefined,
+    strainNameLower: !isEdible && strainNameRaw ? strainNameRaw.toLowerCase() : undefined,
+    strainType, // I/H/S always kept here
     brand,
     brandLower: brand ? brand.toLowerCase() : undefined,
     lineage,
@@ -258,6 +343,17 @@ export async function createEntry(
     aroma,
     rating,
     notes,
+
+    // --- Measurements ---
+    weight,      // grams (smokeables)
+    edibleMg,    // mg (edibles)
+
+    // --- Edible flags/meta ---
+    isEdibleSession: isEdible || undefined,
+    edibleName: isEdible ? edibleName || strainNameRaw || undefined : undefined,
+    edibleType: isEdible ? (edibleCategory ?? 'Other') : undefined, // <- CATEGORY saved here
+    edibleKind: isEdible ? (edibleCategory ?? 'Other') : undefined, // mirror for compatibility
+
     createdAt: now(),
     updatedAt: now(),
   });
@@ -271,28 +367,52 @@ export async function updateEntry(
   entryId: string,
   patch: Partial<Entry>
 ): Promise<void> {
-  const weight = parseWeightToNumber((patch as any).weight ?? (patch as any).dose);
+  const methodStr = String((patch as any).method ?? '').trim();
+  const isEdiblePatch =
+    methodStr.toLowerCase() === 'edible' ||
+    (patch as any).isEdibleSession === true ||
+    (patch as any).edibleName != null ||
+    (patch as any).edibleMg != null ||
+    (patch as any).edibleType != null ||
+    (patch as any).edibleKind != null;
 
-  const strainName = (patch as any).strainName?.trim?.();
-  const strainType = ((patch as any).strainType as StrainType) || 'Hybrid';
-  const brand      = (patch as any).brand?.trim?.();
-  const lineage    = (patch as any).lineage?.trim?.();
+  const weight = !isEdiblePatch
+    ? parseWeightToNumber((patch as any).weight ?? (patch as any).dose)
+    : undefined;
 
-  const flavors = toList((patch as any).flavors ?? (patch as any).taste);
-  const aroma   = toList((patch as any).aroma   ?? (patch as any).smell);
+  // smokeable-only cultivar fields
+  const strainName = !isEdiblePatch ? (patch as any).strainName?.trim?.() : undefined;
+  const strainType = normalizeStrainType((patch as any).strainType) || 'Hybrid';
+  const brand      = !isEdiblePatch ? (patch as any).brand?.trim?.() : undefined;
+  const lineage    = !isEdiblePatch ? (patch as any).lineage?.trim?.() : undefined;
+
+  const flavors = !isEdiblePatch ? toList((patch as any).flavors ?? (patch as any).taste) : undefined;
+  const aroma   = !isEdiblePatch ? toList((patch as any).aroma   ?? (patch as any).smell) : undefined;
 
   const effects = toList((patch as any).effects);
   const rating  = toNum((patch as any).rating);
   const notes   = (patch as any).notes?.trim?.();
 
-  const thcPercent  = toNum((patch as any).thcPercent);
-  const thcaPercent = toNum((patch as any).thcaPercent);
-  const cbdPercent  = toNum((patch as any).cbdPercent);
+  const thcPercent  = !isEdiblePatch ? toNum((patch as any).thcPercent)  : undefined;
+  const thcaPercent = !isEdiblePatch ? toNum((patch as any).thcaPercent) : undefined;
+  const cbdPercent  = !isEdiblePatch ? toNum((patch as any).cbdPercent)  : undefined;
 
-  // write the entry update
+  // edible fields (CATEGORY goes to edibleType & edibleKind)
+  const edibleName = isEdiblePatch ? (patch as any).edibleName?.trim?.() : undefined;
+  const edibleCategory: EdibleCategory | undefined = isEdiblePatch
+    ? (coerceEdibleCategory(patch as any) ||
+       normalizeEdibleCategory((patch as any).edibleType) ||
+       normalizeEdibleCategory((patch as any).edibleKind) ||
+       undefined)
+    : undefined;
+  const edibleMg   = isEdiblePatch ? parseMgToNumber((patch as any).edibleMg ?? (patch as any).dose ?? (patch as any).mg) : undefined;
+
   const norm = stripUndefined({
     ...patch,
+    method: methodStr || (patch as any).method,
     weight,
+
+    // smokeable-only cultivar fields
     strainName,
     strainNameLower: typeof strainName === 'string' ? strainName.toLowerCase() : undefined,
     brand,
@@ -301,28 +421,39 @@ export async function updateEntry(
     thcPercent,
     thcaPercent,
     cbdPercent,
+
+    // common
+    strainType, // keep I/H/S on entry
     effects,
     flavors,
     aroma,
     rating,
     notes,
     updatedAt: now(),
+
+    // edible fields
+    isEdibleSession: isEdiblePatch ? true : (patch as any).isEdibleSession,
+    edibleName,
+    edibleType: edibleCategory, // CATEGORY saved here
+    edibleKind: edibleCategory, // mirror
+    edibleMg,
   });
   await updateDoc(entryRef(uid, entryId), norm as any);
 
-  // also refresh the strain doc so Cultivars shows these fields without manual editing
+  // Refresh the strain doc ONLY for smokeables
   const shouldTouchStrain =
-    typeof strainName === 'string' ||
-    brand !== undefined ||
-    lineage !== undefined ||
-    thcPercent !== undefined ||
-    thcaPercent !== undefined ||
-    cbdPercent !== undefined ||
-    effects !== undefined ||
-    flavors !== undefined ||
-    aroma !== undefined ||
-    rating !== undefined ||
-    notes !== undefined;
+    !isEdiblePatch &&
+    (typeof strainName === 'string' ||
+      brand !== undefined ||
+      lineage !== undefined ||
+      thcPercent !== undefined ||
+      thcaPercent !== undefined ||
+      cbdPercent !== undefined ||
+      effects !== undefined ||
+      flavors !== undefined ||
+      aroma !== undefined ||
+      rating !== undefined ||
+      notes !== undefined);
 
   if (shouldTouchStrain) {
     const effectiveName =
@@ -365,6 +496,8 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
     if (!snap.exists()) return null;
 
     const raw = snap.data() as any;
+    const isEdible =
+      raw?.isEdibleSession === true || String(raw?.method || '').toLowerCase() === 'edible';
 
     const entry: Entry = {
       id: snap.id,
@@ -376,21 +509,27 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
       method: raw?.method ?? 'Pre-Roll',
 
       // linkage & identity
-      strainId: raw?.strainId ?? undefined,
-      strainName: raw?.strainName ?? '',
-      strainType: raw?.strainType ?? 'Hybrid',
-      strainNameLower: raw?.strainNameLower ?? (raw?.strainName ? String(raw.strainName).toLowerCase() : undefined),
+      strainId: !isEdible ? (raw?.strainId ?? undefined) : undefined,
+      strainName: !isEdible ? (raw?.strainName ?? '') : '',
+      strainType: normalizeStrainType(raw?.strainType) || 'Hybrid',
+      strainNameLower:
+        !isEdible
+          ? (raw?.strainNameLower ??
+            (raw?.strainName ? String(raw.strainName).toLowerCase() : undefined))
+          : undefined,
 
-      // curated convenience fields kept on entry
-      brand: raw?.brand ?? undefined,
-      brandLower: raw?.brandLower ?? (raw?.brand ? String(raw.brand).toLowerCase() : undefined),
-      lineage: raw?.lineage ?? undefined,
-      thcPercent: isFiniteNumber(raw?.thcPercent) ? raw.thcPercent : undefined,
-      thcaPercent: isFiniteNumber(raw?.thcaPercent) ? raw.thcaPercent : undefined,
-      cbdPercent: isFiniteNumber(raw?.cbdPercent) ? raw.cbdPercent : undefined,
+      // curated convenience fields kept on entry (smokeables)
+      brand: !isEdible ? (raw?.brand ?? undefined) : undefined,
+      brandLower: !isEdible
+        ? (raw?.brandLower ?? (raw?.brand ? String(raw.brand).toLowerCase() : undefined))
+        : undefined,
+      lineage: !isEdible ? (raw?.lineage ?? undefined) : undefined,
+      thcPercent: !isEdible && isFiniteNumber(raw?.thcPercent) ? raw.thcPercent : undefined,
+      thcaPercent: !isEdible && isFiniteNumber(raw?.thcaPercent) ? raw.thcaPercent : undefined,
+      cbdPercent: !isEdible && isFiniteNumber(raw?.cbdPercent) ? raw.cbdPercent : undefined,
 
-      // normalized weight 
-      weight: parseWeightToNumber(raw?.weight ?? raw?.dose),
+      // normalized measurements
+      weight: !isEdible ? parseWeightToNumber(raw?.weight ?? raw?.dose) : undefined,
 
       // experience
       moodBefore: raw?.moodBefore ?? undefined,
@@ -401,6 +540,19 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
       rating: isFiniteNumber(raw?.rating) ? raw.rating : undefined,
       notes: raw?.notes ?? undefined,
     } as Entry;
+
+    // attach edible fields for convenience (not in Entry type)
+    if (isEdible) {
+      (entry as any).isEdibleSession = true;
+      (entry as any).edibleName = raw?.edibleName ?? raw?.strainName ?? undefined;
+
+      // CATEGORY (Chocolate/Gummy/...) — prefer any correct field, ignore I/H/S mistakes
+      const cat = coerceEdibleCategory(raw);
+      (entry as any).edibleType = cat; // what the app reads
+      (entry as any).edibleKind = cat; // for compatibility
+
+      (entry as any).edibleMg = parseMgToNumber(raw?.edibleMg ?? raw?.dose ?? raw?.mg);
+    }
 
     return entry;
   } catch (err: any) {

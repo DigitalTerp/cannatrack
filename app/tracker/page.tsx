@@ -42,16 +42,29 @@ export default function TrackerPage() {
   const [ready, setReady] = useState(false);
   const [displayName, setDisplayName] = useState<string>('there');
   const [totalGramsToday, setTotalGramsToday] = useState<number>(0);
+  const [totalMgToday, setTotalMgToday] = useState<number>(0);
 
-  const loadTodayTotal = useCallback(async () => {
+  const loadTodayTotals = useCallback(async () => {
     const u = auth.currentUser;
     if (!u) return;
+
     const entries: Entry[] = await listEntriesForDay(u.uid, startOfTodayMs());
-    const total = entries.reduce(
+
+    // total grams (smokeables)
+    const grams = entries.reduce(
       (acc, e) => acc + (typeof e.weight === 'number' ? e.weight : 0),
       0
     );
-    setTotalGramsToday(Number(total.toFixed(2)));
+
+    // total edible mg (method === 'Edible')
+    const mg = entries.reduce((acc, e) => {
+      if (String(e.method) !== 'Edible') return acc;
+      const dose = (e as any).thcMg;
+      return acc + (typeof dose === 'number' ? dose : 0);
+    }, 0);
+
+    setTotalGramsToday(Number(grams.toFixed(2)));
+    setTotalMgToday(Number(mg.toFixed(2)));
   }, []);
 
   useEffect(() => {
@@ -61,20 +74,20 @@ export default function TrackerPage() {
       } else {
         setDisplayName(niceName());
         setReady(true);
-        await loadTodayTotal();
+        await loadTodayTotals();
       }
     });
     return () => unsub();
-  }, [router, loadTodayTotal]);
+  }, [router, loadTodayTotals]);
 
   useEffect(() => {
     if (!ready) return;
     const onVis = () => {
-      if (document.visibilityState === 'visible') loadTodayTotal();
+      if (document.visibilityState === 'visible') loadTodayTotals();
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [ready, loadTodayTotal]);
+  }, [ready, loadTodayTotals]);
 
   if (!ready) return null;
 
@@ -84,10 +97,15 @@ export default function TrackerPage() {
         <h1 className={styles.greeting}>Hi, {displayName}!</h1>
         <div className={`subtle ${styles.dateLine}`}>{formatFullDate()}</div>
 
-        {/* Amount Consumed Today */}
         <div className={styles.amountRow}>
           <span className={`subtle ${styles.amountLabel}`}>Amount Consumed Today:</span>
           <span className="badge">{totalGramsToday} g</span>
+           {totalMgToday > 0 && (
+          <div className={styles.amountRow}>
+            <span className={`subtle ${styles.amountLabel}`}>Edibles Consumed Today:</span>
+            <span className="badge">{totalMgToday} mg</span>
+          </div>
+        )}
         </div>
       </div>
 

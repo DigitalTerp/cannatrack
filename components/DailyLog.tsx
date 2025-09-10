@@ -22,6 +22,15 @@ function badgeClass(t?: StrainType) {
   if (key === 'sativa') return `${typeStyles.typeBadge} ${typeStyles['type-sativa']}`;
   return `${typeStyles.typeBadge} ${typeStyles['type-hybrid']}`;
 }
+const isFiniteNum = (v: any): v is number => typeof v === 'number' && Number.isFinite(v);
+function formatMg(n: number) {
+  return Number.isInteger(n) ? `${n} mg` : `${n.toFixed(1)} mg`;
+}
+function formatPct(n: number) {
+  // show up to 1 decimal, but trim trailing .0
+  const v = Math.round(n * 10) / 10;
+  return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}%`;
+}
 
 export default function DailyLog() {
   const router = useRouter();
@@ -54,13 +63,13 @@ export default function DailyLog() {
       router.push('/login?next=/tracker');
       return;
     }
-    const ok = confirm('Delete this session?');
+    const ok = confirm('Remove this session?');
     if (!ok) return;
     try {
       await deleteEntry(uid, id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
     } catch (e: any) {
-      alert(e?.message || 'Delete failed.');
+      alert(e?.message || 'Remove failed.');
     }
   }
 
@@ -78,41 +87,89 @@ export default function DailyLog() {
 
   return (
     <div className={styles.list}>
-      {entries.map((e) => (
-        <div className={`card ${styles.item}`} key={e.id}>
-          <div className={styles.row}>
-            <div>
-              <div className={styles.nameLine}>
-                <strong className={styles.name}>{e.strainName || 'Untitled'}</strong>
-                <span className={`badge ${badgeClass(e.strainType)}`}>{e.strainType}</span>
+      {entries.map((e) => {
+        const isEdible = Boolean((e as any).isEdible) || e.method === 'Edible';
+        const title = isEdible ? (e as any).edibleName || 'Untitled Edible' : (e.strainName || 'Untitled');
+
+        // total THC% for smokeables = THC + THCA (if either present)
+        const thc = isFiniteNum(e.thcPercent) ? e.thcPercent : 0;
+        const thca = isFiniteNum(e.thcaPercent) ? e.thcaPercent : 0;
+        const totalThc = thc + thca;
+        const showTotalThc = totalThc > 0;
+
+        return (
+          <div className={`card ${styles.item}`} key={e.id}>
+            <div className={styles.row}>
+              <div>
+                {/* Title + Type badge */}
+                <div className={styles.nameLine}>
+                  <strong className={styles.name}>{title}</strong>
+                  <span className={`badge ${badgeClass(e.strainType)}`}>{e.strainType}</span>
+                </div>
+
+                <div className={styles.meta}>
+                  {isEdible ? (
+                    <>
+                      <span className={styles.metaChip}>
+                        <span className={styles.metaChipLabel}>Method:</span> {e.method}
+                      </span>
+                      {(e as any).edibleType && (
+                        <span className={styles.metaChip}>
+                          <span className={styles.metaChipLabel}>Type:</span> {(e as any).edibleType}
+                        </span>
+                      )}
+                      {isFiniteNum((e as any).thcMg) && (
+                        <span className={styles.metaChip}>
+                          <span className={styles.metaChipLabel}>Dose:</span> {formatMg((e as any).thcMg)}
+                        </span>
+                      )}
+                      <span className={styles.metaChip}>
+                        <span className={styles.metaChipLabel}>Time:</span> {formatTime(e.time)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={styles.metaChip}>
+                        <span className={styles.metaChipLabel}>Method:</span> {e.method}
+                      </span>
+                      {isFiniteNum(e.weight) && (
+                        <span className={styles.metaChip}>
+                          <span className={styles.metaChipLabel}>Weight:</span> {e.weight.toFixed(2)}g
+                        </span>
+                      )}
+                      {showTotalThc && (
+                        <span className={styles.metaChip}>
+                          <span className={styles.metaChipLabel}> THC:</span> {formatPct(totalThc)}
+                        </span>
+                      )}
+                      <span className={styles.metaChip}>
+                        <span className={styles.metaChipLabel}>Time:</span> {formatTime(e.time)}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
 
-              <div className={styles.meta}>
-                <span className={styles.metaChip}>
-                  <span className={styles.metaChipLabel}>Time:</span> {formatTime(e.time)}
-                </span>
-                {typeof e.weight === 'number' && (
-                  <span className={styles.metaChip}>
-                    <span className={styles.metaChipLabel}>Weight:</span> {e.weight.toFixed(2)}g
-                  </span>
-                )}
-                <span className={styles.metaChip}>
-                  <span className={styles.metaChipLabel}>Method:</span> {e.method}
-                </span>
+              <div className={styles.right}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => router.push(`/entries/${e.id}/edit`)}
+                  aria-label="Edit entry"
+                >
+                  Edit
+                </button>
+                <button
+                  className={`btn ${styles.btnDanger} ${styles.dangerAnim}`}
+                  onClick={() => handleDelete(e.id)}
+                  aria-label="Delete entry"
+                >
+                  Remove
+                </button>
               </div>
-            </div>
-
-            <div className={styles.right}>
-              <button className="btn btn-ghost" onClick={() => router.push(`/entries/${e.id}/edit`)} aria-label="Edit entry">
-                Edit
-              </button>
-              <button className={`btn ${styles.btnDanger} ${styles.dangerAnim}`} onClick={() => handleDelete(e.id)} aria-label="Delete entry">
-                Delete
-              </button>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

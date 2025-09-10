@@ -1,65 +1,148 @@
-/* ===== Main page wrapper: force black background only here ===== */
+/* Page background + full center */
 .page {
-  background: #000;
+  background: #1e293b; /* <-- updated */
   color: #e5e7eb;
   min-height: 100dvh;
   width: 100%;
-}
-
-.page :global(.subtle) { color: #9ca3af; }
-
-/* ===== Hero Layout ===== */
-.hero {
   display: grid;
-  gap: 1.25rem;
-  align-items: center;
-  padding: 1.5rem 0;
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    "image"
-    "copy";
+  place-items: center; /* center everything */
+  padding: 24px;
 }
 
-.copy { grid-area: copy; }
-.imgWrap { grid-area: image; }
-
-/* Desktop: two columns, text left, image right */
-@media (min-width: 900px) {
-  .hero {
-    grid-template-columns: 1.1fr 0.9fr;
-    grid-template-areas: "copy image";
-  }
+.centerWrap {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 12px;
 }
 
-/* ===== Text blocks ===== */
-.copy h1 { margin: 0 0 .5rem 0; }
-.copy p  { margin: 0.25rem 0 0.75rem 0; }
+/* Card-style hero like login */
+.heroCard {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  backdrop-filter: blur(8px);
+  border-radius: 18px;
+  padding: 32px 28px;
+  box-shadow: 0 12px 34px rgba(0,0,0,0.35);
+  text-align: center; /* center content */
+}
 
-.features { margin: 0.75rem 0 1.25rem 0; }
+/* Brand column (centered) */
+.brandCol {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.logo {
+  display: block;
+}
+
+/* Gradient title */
+.title {
+  margin: 0;
+  font-size: clamp(1.8rem, 3.4vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: .5px;
+  background: linear-gradient(90deg, #60a5fa 0%, #8b5cf6 45%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Copy */
+.tagline {
+  margin: .25rem 0 .75rem 0;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+/* Features */
+.features { margin: .75rem 0 1.25rem 0; }
+.features ul {
+  margin: 0 auto;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: .4rem;
+  max-width: 640px;
+}
+.features li { color: #d1d5db; }
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: .25rem;
+}
+
+/* Mobile */
+@media (max-width: 899px) {
+  .heroCard { padding: 26px 22px; }
+}
 
 /* ===== Actions (buttons row) ===== */
 .actions {
   display: flex;
-  gap: .5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1.5rem;
 }
 
-/* ===== Image ===== */
-.imgWrap { width: 100%; }
-.imgWrap img {
-  display: block;
+/* Expanded Login Button */
+.loginBtn {
+  background: #22c55e; /* green-500 */
+  color: #fff;
+  font-weight: 600;
+  padding: 0.9rem 2rem;
+  border-radius: 10px;
   width: 100%;
-  height: auto;
-  border-radius: 12px;
-  object-fit: cover;
+  max-width: 280px;
+  text-align: center;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
-/* ===== Mobile: center *everything* ===== */
-@media (max-width: 899px) {
-  .hero { text-align: center; }
-  .copy, .features { text-align: center; }
-  .actions { justify-content: center; }
-  .page {
-    padding-bottom: 96px;
-  }
+.loginBtn:hover {
+  background: #16a34a; /* green-600 */
+  transform: translateY(-2px);
+}
+
+.lineBtn {
+  background: none;
+  border: none;
+  color: #e5e7eb;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.lineBtn:hover {
+  color: #93c5fd; /* lighter blue on hover */
+}
+
+/* ===== Edibles Section Heading ===== */
+.ediblesHeading {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* centers badge + text together */
+  gap: 0.5rem;
+  margin-top: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.newBadge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  font-size: 14px;
+  font-weight: 600;
+  color: #22c55e;
 }

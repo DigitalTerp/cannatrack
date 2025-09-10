@@ -37,6 +37,7 @@ function badgeClass(t: StrainType | undefined) {
   if (key === 'sativa') return `${typeStyles.typeBadge} ${typeStyles['type-sativa']}`;
   return `${typeStyles.typeBadge} ${typeStyles['type-hybrid']}`;
 }
+const isEdible = (e: Entry) => String(e.method) === 'Edible';
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -71,25 +72,35 @@ export default function HistoryPage() {
 
   useEffect(() => {
     loadForDate(dateStr, user);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, dateStr]);
 
   async function handleDelete(id: string) {
     if (!user) return;
-    if (!confirm('Delete this session?')) return;
+    if (!confirm('Remove this session?')) return;
     try {
       await deleteEntry(user.uid, id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
     } catch (e: any) {
-      alert(e?.message || 'Delete failed.');
+      alert(e?.message || 'Remove failed.');
     }
   }
 
-  /* ---------- NEW: day totals (sessions & total grams) ---------- */
   const totals = useMemo(() => {
     const sessions = entries.length;
-    const grams = entries.reduce((sum, e) => sum + (typeof e.weight === 'number' ? e.weight : 0), 0);
-    return { sessions, grams: Number(grams.toFixed(2)) };
+    const grams = entries.reduce(
+      (sum, e) => sum + (typeof e.weight === 'number' ? e.weight : 0),
+      0
+    );
+    const mg = entries.reduce((sum, e) => {
+      if (!isEdible(e)) return sum;
+      const dose = (e as any).thcMg;
+      return sum + (typeof dose === 'number' ? dose : 0);
+    }, 0);
+    return {
+      sessions,
+      grams: Number(grams.toFixed(2)),
+      mg: Number(mg.toFixed(2)),
+    };
   }, [entries]);
 
   return (
@@ -101,7 +112,7 @@ export default function HistoryPage() {
       <div className={styles.controls}>
         <div className={styles.dateRow}>
           <label htmlFor="hist-date" className="subtle" style={{ marginRight: '.25rem' }}>
-            Pick a date
+            Pick A Date
           </label>
           <input
             id="hist-date"
@@ -125,56 +136,111 @@ export default function HistoryPage() {
       </div>
 
       {!loading && (
-      <div className={`card ${styles.totalsCard}`}>
-      <div className={styles.totalsWrap}>
-          <span className="badge">Sessions: {totals.sessions}</span>
-          <span className="badge">Total Weight: {totals.grams} g</span>
+        <div className={`card ${styles.totalsCard}`}>
+          <div className={styles.totalsWrap}>
+            <span className="badge">Sessions: {totals.sessions}</span>
+            <span className="badge">Total Weight: {totals.grams} g</span>
+            {totals.mg > 0 && (
+              <span className="badge">Edibles: {totals.mg} mg</span>
+            )}
+          </div>
         </div>
-      </div>
       )}
-
 
       {err && <div className="card"><p className="error">{err}</p></div>}
       {loading && <div className="card">Loading…</div>}
       {!loading && entries.length === 0 && (
-        <div className="card"><p className="subtle" style={{ margin: 0 }}>No sessions on this day.</p></div>
+        <div className="card">
+          <p className="subtle" style={{ margin: 0 }}>No sessions on this day.</p>
+        </div>
       )}
 
       <div className={styles.grid}>
-        {entries.map((e) => (
-          <div key={e.id} className={`card ${styles.entryCard}`}>
-            <div className={styles.headerRow}>
-              <h3 className={styles.name}>{e.strainName || 'Untitled'}</h3>
-              <span className={`badge ${badgeClass(e.strainType)}`}>{e.strainType || '—'}</span>
-            </div>
+        {entries.map((e) => {
+          const edible = isEdible(e);
+          const edibleName = (e as any).edibleName as string | undefined;
+          const doseMg = (e as any).thcMg as number | undefined;
+          const edibleType = (e as any).edibleType as string | undefined;
+          const thcPercent = (e as any).thcPercent as number | undefined;
 
-            <div className={typeStyles.kvList}>
-              <div className={typeStyles.kvRow}>
-                <span className={typeStyles.kvLabel}>Time</span>
-                <span className={typeStyles.kvValue}>{fmtTime(e.time)}</span>
+          return (
+            <div key={e.id} className={`card ${styles.entryCard}`}>
+              <div className={styles.headerRow}>
+                <h3 className={styles.name}>
+                  {edible ? (edibleName || e.strainName || 'Untitled') : (e.strainName || 'Untitled')}
+                </h3>
+                <span className={`badge ${badgeClass(e.strainType)}`}>{e.strainType || '—'}</span>
               </div>
-              <div className={typeStyles.kvRow}>
-                <span className={typeStyles.kvLabel}>Method</span>
-                <span className={typeStyles.kvValue}>{e.method}</span>
-              </div>
-              {typeof e.weight === 'number' && (
-                <div className={typeStyles.kvRow}>
-                  <span className={typeStyles.kvLabel}>Weight</span>
-                  <span className={typeStyles.kvValue}>{e.weight.toFixed(2)}g</span>
-                </div>
-              )}
-            </div>
 
-            <div className={styles.actions}>
-              <button className="btn btn-ghost" onClick={() => router.push(`/entries/${e.id}/edit`)} aria-label="Edit entry">
-                Edit
-              </button>
-              <button className={`btn ${typeStyles.deleteBtn}`} onClick={() => handleDelete(e.id)} aria-label="Delete entry">
-                Delete
-              </button>
+              <div className={typeStyles.kvList}>
+                {edible ? (
+                  <>
+                    <div className={typeStyles.kvRow}>
+                      <span className={typeStyles.kvLabel}>Method</span>
+                      <span className={typeStyles.kvValue}>{e.method}</span>
+                    </div>
+                    {edibleType && (
+                      <div className={typeStyles.kvRow}>
+                        <span className={typeStyles.kvLabel}>Type</span>
+                        <span className={typeStyles.kvValue}>{edibleType}</span>
+                      </div>
+                    )}
+                    {typeof doseMg === 'number' && (
+                      <div className={typeStyles.kvRow}>
+                        <span className={typeStyles.kvLabel}>Dose</span>
+                        <span className={typeStyles.kvValue}>{doseMg.toFixed(2)} mg</span>
+                      </div>
+                    )}
+                    <div className={typeStyles.kvRow}>
+                      <span className={typeStyles.kvLabel}>Time</span>
+                      <span className={typeStyles.kvValue}>{fmtTime(e.time)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={typeStyles.kvRow}>
+                      <span className={typeStyles.kvLabel}>Method</span>
+                      <span className={typeStyles.kvValue}>{e.method}</span>
+                    </div>
+                    {typeof e.weight === 'number' && (
+                      <div className={typeStyles.kvRow}>
+                        <span className={typeStyles.kvLabel}>Weight</span>
+                        <span className={typeStyles.kvValue}>{e.weight.toFixed(2)}g</span>
+                      </div>
+                    )}
+                    {typeof thcPercent === 'number' && (
+                      <div className={typeStyles.kvRow}>
+                        <span className={typeStyles.kvLabel}>THC%</span>
+                        <span className={typeStyles.kvValue}>{thcPercent.toFixed(1)}%</span>
+                      </div>
+                    )}
+                    <div className={typeStyles.kvRow}>
+                      <span className={typeStyles.kvLabel}>Time</span>
+                      <span className={typeStyles.kvValue}>{fmtTime(e.time)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className={styles.actions}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => router.push(`/entries/${e.id}/edit`)}
+                  aria-label="Edit entry"
+                >
+                  Edit
+                </button>
+                <button
+                  className={`btn ${typeStyles.deleteBtn}`}
+                  onClick={() => handleDelete(e.id)}
+                  aria-label="Delete entry"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

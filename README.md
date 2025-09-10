@@ -171,3 +171,45 @@ Styles / CSS Modules
 -**tracker.module.css: greeting/date/consumed-today sections centered and tidy on mobile, consistent spacing.
 
 General polish to align badges and headings across pages.
+
+**September 10, 2025** Major Update — Personalization, Edibles, Landing Refresh, Cleanup
+
+This release marks one of the biggest updates to *My Canna Tracker* yet. 🎉
+
+**Highlights**
+
+- **Personalized Menu**
+  - Mobile drawer now greets you by your registered username.
+  - Inline reminder if it’s not your account, with a quick logout link.
+  - Adds a friendlier, more “yours” feel across navigation.
+
+- **NEW! Edible Tracking**
+  - Dedicated entry form for edibles (Gummy, Chocolate, Beverage, Pill).
+  - Track THC dosage in **mg** alongside type (Indica/Hybrid/Sativa).
+  - Edibles are excluded from cultivar graphs to keep analytics clean.
+  - Insights now include **Edible Intake** charts (mg totals + type mix).
+  - History cards display **edible type** + dose for each entry.
+
+- **Main Landing Page Overhaul**
+  - No global header — focused **welcome screen** with larger centered logo.
+  - New explanatory copy highlighting features.
+  - Separate **“NEW! Edible Tracking” section** with badge styling.
+  - Cleaner actions: green primary **Login** button + subtle line-style **Create Account** button.
+
+- **Tracker / History Enhancements**
+  - Tracker shows **grams** *and* **edible mg** consumed today.
+  - History smokeable entries now display **THC%**.
+  - Entry cards more consistent with badges for method, weight, THC%, time.
+
+- **Insights Expansion**
+  - Added edible-specific graphs showing mg totals by day and type.
+  - Cultivar charts now exclude edible sessions (clarity in analytics).
+  - Additional badges: **Most Consumed Type**, **Most Consumed Edible Type**.
+
+- **General Cleanup**
+  - Consolidated inline styles into `main.module.css` and other CSS modules.
+  - Created dedicated icon components (`HamburgerIcon`, `XIcon`).
+  - Simplified badge layouts, improved chart readability, and unified spacing.
+  - Codebase refactors for readability and maintainability.
+
+This update makes My Canna Tracker more personal, more useful for edible consumers, and more polished overall.

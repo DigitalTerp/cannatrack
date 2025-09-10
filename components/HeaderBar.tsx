@@ -6,56 +6,42 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import HamburgerIcon from '@/components/icons/HamburgerIcon';
+import Xicon from '@/components/icons/XIcon';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-/* Hamburger Menu Icon */
-function HamburgerIcon({ open, size = 28 }: { open: boolean; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill='transparent'
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={`icon-hamburger ${open ? 'is-open' : ''}`}
-    >
-      <line x1="4" y1="7"  x2="20" y2="7"  className="bar bar-top" />
-      <line x1="4" y1="12" x2="20" y2="12" className="bar bar-mid" />
-      <line x1="4" y1="17" x2="20" y2="17" className="bar bar-bot" />
-    </svg>
-  );
-}
-
-/* X icon for closing the drawer */
-function XIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={3}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
+/* Friendly fallback if username not set */
+function fallbackNiceName(u: User | null): string {
+  const fromProfile = u?.displayName?.trim();
+  if (fromProfile) return fromProfile;
+  const email = u?.email || '';
+  const raw = email.split('@')[0] || 'there';
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
 export default function HeaderBar() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, setUser);
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (!u) {
+        setUsername(null);
+        return;
+      }
+      try {
+        // Fetch username from Firestore: /users/{uid} -> { username: string }
+        const snap = await getDoc(doc(db, 'users', u.uid));
+        const name = snap.exists() ? (snap.data()?.username as string | undefined) : undefined;
+        setUsername(name && name.trim() ? name.trim() : null);
+      } catch {
+        setUsername(null);
+      }
+    });
     return () => unsub();
   }, []);
 
@@ -85,6 +71,8 @@ export default function HeaderBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const display = username || fallbackNiceName(user);
+
   return (
     <>
       <header className="site-header">
@@ -112,7 +100,6 @@ export default function HeaderBar() {
             <div style={{ width: 56, height: 1 }} />
           </div>
 
-          {/* Desktop nav only */}
           <nav className="site-nav desktop-only">
             <button className="btn btn-primary" onClick={goLogSession}>Log Session</button>
             <a className="btn btn-ghost" href="/tracker">Daily</a>
@@ -129,8 +116,13 @@ export default function HeaderBar() {
         </div>
       </header>
 
-      {/* Mobile Drawer */}
-      <div id="mobile-drawer" className={`drawer ${open ? 'open' : ''}`} role="dialog" aria-modal="true" aria-label="Main menu">
+      <div
+        id="mobile-drawer"
+        className={`drawer ${open ? 'open' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Main menu"
+      >
         <div className="drawer-header">
           <div style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}>
             <Image src="/My%20Canna%20Tracker.svg" alt="Logo" width={25} height={25} priority />
@@ -138,9 +130,24 @@ export default function HeaderBar() {
           </div>
 
           <button className="icon-btn" aria-label="Close menu" onClick={() => setOpen(false)}>
-            <XIcon size={22} />
+            <Xicon size={22} />
           </button>
         </div>
+
+        {user && (
+          <div
+            className="drawer-user"
+            style={{
+              padding: '0 1rem 0.75rem 1rem',
+              borderBottom: '1px solid var(--border-color, #2a2f3a)',
+              marginBottom: '0.5rem',
+            }}
+          >
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 2 }}>
+              Welcome, {display} 👋
+            </div>
+          </div>
+        )}
 
         <nav className="drawer-nav">
           <a href="/tracker" className="drawer-link" onClick={() => setOpen(false)}>Daily</a>

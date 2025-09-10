@@ -1,12 +1,12 @@
 import './globals.css';
 import type { ReactNode } from 'react';
-import HeaderBar from '@/components/HeaderBar';
+import HeaderGate from '@/components/HeaderGate';
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <HeaderBar />
+        <HeaderGate />
         {children}
       </body>
     </html>
