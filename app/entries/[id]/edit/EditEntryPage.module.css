@@ -1,0 +1,26 @@
+.header {
+  position: relative;
+  display: flex;
+  justify-content: center;  
+  align-items: center;
+  margin-bottom: 1rem;
+  min-height: 48px;        
+}
+
+.title {
+  margin: 0;
+  text-align: center;
+}
+
+.action {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding-right: 96px;
+  }
+}

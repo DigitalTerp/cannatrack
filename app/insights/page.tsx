@@ -112,6 +112,24 @@ const tooltipContentStyle: React.CSSProperties = {
 const tooltipLabelStyle: React.CSSProperties = { color: '#9CA3AF', marginBottom: 4 };
 const tooltipItemStyle: React.CSSProperties = { color: '#E5E7EB' };
 
+/* --------- Grams to Ounces -------------- */
+
+const G_PER_OZ = 28;
+
+function formatWeightTotal(g: number): string {
+  if (g < G_PER_OZ) return `${g.toFixed(2)} g`;
+  const oz = g / G_PER_OZ;
+  if (Math.abs(g - G_PER_OZ) < 1e-6) return `1 oz`;
+  return `${oz.toFixed(2)} oz\u00A0\u00A0 ( ${g.toFixed(2)}g )`;
+}
+
+function formatWeightGraph(g: number): string {
+  if (g < G_PER_OZ) return `${g} g`;
+  const oz = g / G_PER_OZ;
+  return `${oz.toFixed(2)} oz\u00A0\u00A0 ( ${g} g )`;
+
+}
+
 /* ---------------------------- Page ---------------------------- */
 export default function InsightsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -125,7 +143,7 @@ export default function InsightsPage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      if (u) setDisplayName(niceName()); // Hydrate Greeting name
+      if (u) setDisplayName(niceName());
     });
     return () => unsub();
   }, []);
@@ -210,7 +228,7 @@ export default function InsightsPage() {
 
   // Method mix (includes "Edible" with 0 grams)
   const methodMix30 = useMemo(() => {
-    const METHODS: Array<Method | 'Edible'> = ['Pre-Roll', 'Bong', 'Pipe', 'Vape', 'Dab', 'Edible'];
+    const METHODS: Array<Method | 'Edible'> = ['Bong',  'Dab', 'Edible', 'Pipe', 'Pre-Roll', 'Vape'];
     const base: Record<string, { sessions: number; grams: number }> = {};
     METHODS.forEach((m) => (base[m] = { sessions: 0, grams: 0 }));
 
@@ -231,9 +249,9 @@ export default function InsightsPage() {
   // Cultivar type mix — SMOKEABLES ONLY
   const typeMix30 = useMemo(() => {
     const base: Record<StrainType, { sessions: number; grams: number }> = {
-      Indica: { sessions: 0, grams: 0 },
-      Hybrid: { sessions: 0, grams: 0 },
       Sativa: { sessions: 0, grams: 0 },
+      Hybrid: { sessions: 0, grams: 0 },
+      Indica: { sessions: 0, grams: 0 },
     };
     for (const e of flat30Smoke) {
       const t = (e.strainType as StrainType) || 'Hybrid';
@@ -392,7 +410,6 @@ export default function InsightsPage() {
         </p>
       </div>
 
-      {/* Last 7 Days stats bar */}
       <div className={`card ${styles.statsBarCard}`}>
         <div className={styles.statsBar}>
           <div>
@@ -401,7 +418,7 @@ export default function InsightsPage() {
           </div>
           <div className={styles.statsBadges}>
             <span className={`badge ${styles.badgeBig}`}>Sessions: {badges7.totalSessions}</span>
-            <span className={`badge ${styles.badgeBig}`}>Weight: {badges7.totalGrams} g</span>
+            <span className={`badge ${styles.badgeBig}`}>Weight: {formatWeightTotal(badges7.totalGrams)}</span>
             {badges7.totalEdibleMg > 0 && (
               <span className={`badge ${styles.badgeBig}`}>Edibles: {badges7.totalEdibleMg} mg</span>
             )}
@@ -432,7 +449,8 @@ export default function InsightsPage() {
                   <XAxis
                     dataKey="name"
                     interval={manySessionBars ? 'preserveStartEnd' : 0}
-                    angle={manySessionBars ? -25 : 0}
+                    tickMargin={10}
+                    angle={manySessionBars ? -90 : 0}
                     textAnchor={manySessionBars ? 'end' : 'middle'}
                     height={manySessionBars ? 56 : undefined}
                   />
@@ -448,7 +466,7 @@ export default function InsightsPage() {
             <h2>Weight Consumed<br /> ( Last 30 Days )</h2>
             <div className="subtle"><em><strong>{range30}</strong></em></div>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
-              <span className={`badge ${styles.badgeBig}`}>Total: {totalGrams30} g</span>
+              <span className={`badge ${styles.badgeBig}`}>Total: {formatWeightTotal(totalGrams30)}</span>
             </div>
             <div className="subtle">Grams logged per day across the last thirty days.</div>
             <div className={styles.chartWrap}>
@@ -462,7 +480,7 @@ export default function InsightsPage() {
                   <XAxis
                     dataKey="name"
                     interval={manyGramBars ? 'preserveStartEnd' : 0}
-                    angle={manyGramBars ? -25 : 0}
+                    angle={manyGramBars ? -90 : 0}
                     textAnchor={manyGramBars ? 'end' : 'middle'}
                     height={manyGramBars ? 56 : undefined}
                   />
@@ -471,7 +489,7 @@ export default function InsightsPage() {
                     contentStyle={tooltipContentStyle}
                     labelStyle={tooltipLabelStyle}
                     itemStyle={tooltipItemStyle}
-                    formatter={(val: any) => [`${val} g`, 'Weight']}
+                    formatter={(val: any) => [formatWeightGraph(Number(val)), 'Weight']}
                   />
                   <Bar dataKey="grams" name="Grams" fill={COLORS.blue} />
                 </BarChart>
@@ -487,9 +505,18 @@ export default function InsightsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={methodMix30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="method" />
+                  <XAxis dataKey="method" interval={0}/>
                   <YAxis />
-                  <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+                  <Tooltip
+                    contentStyle={tooltipContentStyle}
+                    labelStyle={tooltipLabelStyle}
+                    itemStyle={tooltipItemStyle}
+                    formatter={(val: any, name: string) =>
+                    name === 'Grams'
+                  ? [formatWeightGraph(Number(val)), 'Weight']
+                    : [val, 'Sessions']
+                  }
+                  />
                   <Legend />
                   <Bar dataKey="sessions" name="Sessions" fill={COLORS.slate} />
                   <Bar dataKey="grams" name="Grams" fill={COLORS.teal} />
@@ -498,7 +525,6 @@ export default function InsightsPage() {
             </div>
           </div>
 
-          {/* Type (30 days) — SMOKEABLES ONLY */}
           <div className="card">
             <h2>Cultivar Type Consumed<br />( Last 30 Days )</h2>
             <div className="subtle"><em><strong>{range30}</strong></em></div>
@@ -508,14 +534,24 @@ export default function InsightsPage() {
                 {preferredType}
               </span>
             </div>
-            <div className="subtle">Sessions vs. total grams, by Indica / Hybrid / Sativa.</div>
+            <div className="subtle">Sessions vs. total grams, by Sativa / Hybrid / Indica.</div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={typeMix30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="type" />
                   <YAxis />
-                  <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+                  <Tooltip
+                    contentStyle={tooltipContentStyle}
+                    labelStyle={tooltipLabelStyle}
+                    itemStyle={tooltipItemStyle}
+                    formatter={(val: any, name: string) =>
+                    name === 'Grams'
+                      ? [formatWeightGraph(Number(val)), 'Weight']
+                      : [val, 'Sessions']
+                      }
+                  />
+
                   <Legend />
                   <Bar dataKey="sessions" name="Sessions" fill={COLORS.cyan} />
                   <Bar dataKey="grams" name="Grams" fill={COLORS.lime} />
@@ -545,7 +581,7 @@ export default function InsightsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={topCultivars30} margin={{ top: 8, right: 0, bottom: 24, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={56} />
+                    <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={60} />
                     <YAxis yAxisId="left" allowDecimals={false} />
                     <YAxis yAxisId="right" orientation="right" />
                     <Tooltip
@@ -553,7 +589,9 @@ export default function InsightsPage() {
                       labelStyle={tooltipLabelStyle}
                       itemStyle={tooltipItemStyle}
                       formatter={(val: any, name: string) =>
-                        name === 'Grams' ? [`${val} g`, 'Grams'] : [val, 'Sessions']
+                      name === 'Grams'
+                        ? [formatWeightGraph(Number(val)), 'Grams']
+                        : [val, 'Sessions']
                       }
                     />
                     <Legend />
@@ -565,7 +603,6 @@ export default function InsightsPage() {
             )}
           </div>
 
-          {/* Edible Intake by strain type (I/H/S) */}
           <div className="card">
             <h2>Edible Intake by Type</h2>
 
@@ -611,8 +648,7 @@ export default function InsightsPage() {
               </div>
             )}
           </div>
-
-          {/* Edible Types — Sessions only (ABC order) */}
+          
           <div className="card">
             <h2>Edible Types (Sessions)<br /> ( Last 30 Days )</h2>
             <div className="subtle"><em><strong>{range30}</strong></em></div>
@@ -621,7 +657,10 @@ export default function InsightsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={edibleTypeSessions30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="type" />
+                  <XAxis dataKey="type"
+                  interval={0}
+                  tick={{ fontSize: 12, dy: 6 }}
+                  />
                   <YAxis allowDecimals={false} />
                   <Tooltip
                     contentStyle={tooltipContentStyle}

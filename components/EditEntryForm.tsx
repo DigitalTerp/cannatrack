@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import { updateEntry, upsertStrainByName } from '@/lib/firestore';
 import type { Entry, Method, StrainType, Strain, EdibleType } from '@/lib/types';
+import styles from './FormEntry.module.css';
 
 const METHODS: Method[] = ['Pre-Roll', 'Bong', 'Pipe', 'Vape', 'Dab'];
 const TYPES: StrainType[] = ['Indica', 'Hybrid', 'Sativa'];
@@ -75,16 +76,13 @@ export default function EditEntryForm({ entry, strain }: Props) {
 
   // ---- Edible-only fields ----
   const [edibleName, setEdibleName] = useState<string>('');
-  const [edibleType, setEdibleType] = useState<EdibleType>('Gummy'); // category (Gummy/Chocolate/...)
+  const [edibleType, setEdibleType] = useState<EdibleType>('Gummy');
   const [thcMgText, setThcMgText] = useState<string>(''); // mg
 
-  // 🔄 Hydrate from `entry` when it arrives
   useEffect(() => {
     if (!entry) return;
 
     const edible = looksEdible(entry);
-
-    // Common time/notes
     const d = new Date(typeof entry.time === 'number' ? entry.time : Date.now());
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     setTimeIso(d.toISOString().slice(0, 16));
@@ -92,24 +90,15 @@ export default function EditEntryForm({ entry, strain }: Props) {
     setStrainType(entry.strainType ?? 'Hybrid');
 
     if (edible) {
-      // ------- Edible hydrate -------
       setSessionType('edible');
 
       const name = (entry as any).edibleName || entry.strainName || '';
       setEdibleName(name);
-
-      // CATEGORY comes from edibleKind in Firestore
       const kind = (entry as any).edibleKind as EdibleType | undefined;
       setEdibleType(kind && EDIBLE_TYPES.includes(kind) ? kind : 'Gummy');
-
-      // MG comes from edibleMg
       const mg = (entry as any).edibleMg;
       setThcMgText(typeof mg === 'number' ? String(mg) : '');
-
-      // Brand (we keep 'brand' on entries even for edibles)
       setCultivator(entry.brand ?? '');
-
-      // Clear smokeable UI bits
       setMethod('Pre-Roll');
       setWeightText('');
       setRating(undefined);
@@ -120,9 +109,9 @@ export default function EditEntryForm({ entry, strain }: Props) {
       setThc('');
       setThca('');
       setCbd('');
-      setStrainName(''); // we use edibleName instead
+      setStrainName('');
     } else {
-      // ------- Smokeable hydrate -------
+      
       setSessionType('smokeable');
 
       setStrainName(entry.strainName ?? '');
@@ -132,8 +121,6 @@ export default function EditEntryForm({ entry, strain }: Props) {
       setEffectsText(joinList(entry.effects));
       setAromaText(joinList(entry.aroma));
       setFlavorsText(joinList(entry.flavors));
-
-      // cultivar aux from `strain` if provided, else from entry-like fields
       setCultivator(strain?.brand ?? entry.brand ?? '');
       setLineage(strain?.lineage ?? entry.lineage ?? '');
       setThc(
@@ -152,7 +139,7 @@ export default function EditEntryForm({ entry, strain }: Props) {
           : ''
       );
 
-      // Clear edible UI bits
+  
       setEdibleName('');
       setEdibleType('Gummy');
       setThcMgText('');
@@ -183,8 +170,8 @@ export default function EditEntryForm({ entry, strain }: Props) {
 
           // edible specifics (category + mg)
           edibleName: edibleName.trim(),
-          edibleKind: edibleType,           // <— CATEGORY saved as edibleKind
-          edibleMg: toNum(thcMgText),       // <— milligrams
+          edibleKind: edibleType,
+          edibleMg: toNum(thcMgText),
 
           // ensure smokeable-specific fields aren’t set
           strainId: undefined,
@@ -234,8 +221,6 @@ export default function EditEntryForm({ entry, strain }: Props) {
           thcPercent: toNum(thc),
           thcaPercent: toNum(thca),
           cbdPercent: toNum(cbd),
-
-          // ensure edible-only fields aren’t set (Firestore ignores unknowns anyway)
         };
 
         await updateEntry(uid, entry.id, patch as any);
@@ -252,36 +237,46 @@ export default function EditEntryForm({ entry, strain }: Props) {
   if (!entry) {
     return (
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Edit Session</h2>
+        <h2 className={styles.heading}>Edit Session</h2>
         <p className="subtle">Loading session…</p>
       </div>
     );
   }
+const displayTitle =
+  sessionType === 'edible'
+    ? (edibleName?.trim() || 'Unnamed edible')
+    : (strainName?.trim() || 'Unnamed cultivar');
+
 
   return (
-    <form className="card" onSubmit={onSubmit}>
-      <h2 style={{ marginTop: 0 }}>Edit Session</h2>
-      {err && <div className="error" style={{ marginBottom: 12 }}>{err}</div>}
+    <form className="card" onSubmit={onSubmit} noValidate>
+      <h2 className={styles.heading}>{displayTitle}</h2>
+<div className={styles.subheading}>
+  {sessionType === 'edible'
+    ? ['Edible', edibleType, cultivator].filter(Boolean).join(' • ')
+    : [method, strainType, cultivator].filter(Boolean).join(' • ')}
+</div>
 
-      {/* Session type toggle */}
-      <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1rem' }}>
+      {err && <div className={styles.errorTop}>{err}</div>}
+
+      <div className={styles.toggleRow}>
         <button
           type="button"
-          className={`btn ${sessionType === 'smokeable' ? 'btn-primary' : 'btn-ghost'}`}
+          className={`btn ${sessionType === 'smokeable' ? 'btn-primary' : 'btn-ghost'} ${styles.btnWide}`}
           onClick={() => setSessionType('smokeable')}
         >
-          Smokeable
+          SMOKEABLE
         </button>
         <button
           type="button"
-          className={`btn ${sessionType === 'edible' ? 'btn-primary' : 'btn-ghost'}`}
+          className={`btn ${sessionType === 'edible' ? 'btn-primary' : 'btn-ghost'} ${styles.btnWide}`}
           onClick={() => setSessionType('edible')}
         >
-          Edible
+          EDIBLE
         </button>
       </div>
 
-      <div style={{ marginBottom: '1rem' }}>
+      <div className={styles.field}>
         <label>Date &amp; time</label>
         <input
           className="input"
@@ -291,17 +286,9 @@ export default function EditEntryForm({ entry, strain }: Props) {
         />
       </div>
 
-      {/* --- Edible fields --- */}
       {sessionType === 'edible' && (
         <>
-          <div
-            style={{
-              display: 'grid',
-              gap: '0.75rem',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              marginBottom: '0.5rem',
-            }}
-          >
+          <div className={`${styles.gridAutoSmall} ${styles.section}`}>
             <div>
               <label>Edible name *</label>
               <input
@@ -362,7 +349,7 @@ export default function EditEntryForm({ entry, strain }: Props) {
             </div>
           </div>
 
-          <div>
+          <div className={styles.section}>
             <label>Notes</label>
             <textarea
               className="input"
@@ -376,13 +363,7 @@ export default function EditEntryForm({ entry, strain }: Props) {
 
       {sessionType === 'smokeable' && (
         <>
-          <div
-            style={{
-              display: 'grid',
-              gap: '0.75rem',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            }}
-          >
+          <div className={styles.gridAutoSmall}>
             <div>
               <label>Cultivar name *</label>
               <input
@@ -431,14 +412,7 @@ export default function EditEntryForm({ entry, strain }: Props) {
             </div>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gap: '0.75rem',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              marginTop: '0.75rem',
-            }}
-          >
+          <div className={`${styles.gridAutoSmall} ${styles.section}`}>
             <div>
               <label>Cultivator</label>
               <input
@@ -486,14 +460,7 @@ export default function EditEntryForm({ entry, strain }: Props) {
             </div>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gap: '0.75rem',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              marginTop: '0.75rem',
-            }}
-          >
+          <div className={`${styles.gridAutoMed} ${styles.section}`}>
             <div>
               <label>Effects</label>
               <input
@@ -512,7 +479,6 @@ export default function EditEntryForm({ entry, strain }: Props) {
                 onChange={(e) => setAromaText(e.target.value)}
                 placeholder="Eg. pine, citrus, diesel"
               />
-              <div className="help">Comma or semicolon separated.</div>
             </div>
 
             <div>
@@ -523,11 +489,10 @@ export default function EditEntryForm({ entry, strain }: Props) {
                 onChange={(e) => setFlavorsText(e.target.value)}
                 placeholder="Eg. blueberry, sweet, earthy"
               />
-              <div className="help">Comma or semicolon separated.</div>
             </div>
           </div>
 
-          <div style={{ marginTop: '0.75rem' }}>
+          <div className={styles.section}>
             <label>Rating</label>
             <input
               className="input"
@@ -542,7 +507,7 @@ export default function EditEntryForm({ entry, strain }: Props) {
             />
           </div>
 
-          <div style={{ marginTop: '0.75rem' }}>
+          <div className={styles.section}>
             <label>Notes</label>
             <textarea
               className="input"
@@ -554,8 +519,8 @@ export default function EditEntryForm({ entry, strain }: Props) {
         </>
       )}
 
-      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-        <button className="btn btn-primary" disabled={saving} type="submit">
+      <div className={styles.actions}>
+        <button className={`btn btn-primary ${styles.btnWide}`} disabled={saving} type="submit">
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
       </div>

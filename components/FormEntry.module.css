@@ -1,0 +1,146 @@
+:root {
+  --space-1: 0.5rem;
+  --space-2: 0.75rem;
+  --space-3: 1rem;
+  --space-4: 1.25rem;
+  --space-5: 1.5rem;
+}
+
+.heading {
+  margin-top: 0;
+  margin-bottom: var(--space-4);
+  text-align: center;
+}
+
+.errorTop {
+  margin-bottom: var(--space-3);
+  color: var(--error, #e25555);
+}
+
+.formRoot :global(.btn) {
+  box-sizing: border-box;
+  padding: 0.625rem 1rem;
+  line-height: 1.2;
+  min-height: 44px;
+  font-weight: 600; 
+}
+.formRoot :global(.btn.btn-primary) {
+  border: 1px solid transparent; 
+}
+
+.toggleRow {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btnWide {
+  min-width: 180px;
+  max-width: 100%;
+}
+
+.field {
+  margin-bottom: var(--space-4);
+}
+.field > label,
+.section > label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.formRoot :global(.input) {
+  padding: 0.65rem 0.85rem;
+  line-height: 1.4;
+}
+.formRoot :global(textarea.input) {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.help {
+  margin-top: 0.375rem;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.gridTwo {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 1fr 1fr;
+}
+.gridAutoSmall {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.gridAutoMed {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.section {
+  margin-top: var(--space-4);
+}
+
+.error {
+  margin-top: var(--space-2);
+  color: var(--error, #e25555);
+}
+
+.actions {
+  margin-top: var(--space-5);
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.actions :global(.btn) {
+  flex: 1 1 0;
+  max-width: 320px;
+}
+
+/* ---------- Mobile: equal-size toggles & tidy actions ---------- */
+@media (max-width: 640px) {
+  .toggleRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* equal columns for Smokeable/Edible */
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .toggleRow :global(.btn),
+  .actions   :global(.btn) {
+    min-width: 0;
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btnWide {
+    min-width: 0;
+  }
+
+  .gridTwo {
+    grid-template-columns: 1fr;
+  }
+}
+
+.subheading {
+  text-align: center;
+  margin-top: -0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  opacity: 0.8;
+  font-style: italic;
+}

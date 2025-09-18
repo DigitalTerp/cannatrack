@@ -7,6 +7,7 @@ import { auth } from '@/lib/firebase';
 import { getEntry } from '@/lib/firestore';
 import type { Entry } from '@/lib/types';
 import EditEntryForm from '@/components/EditEntryForm';
+import styles from './EditEntryPage.module.css'; 
 
 export default function EditEntryPage() {
   const router = useRouter();
@@ -27,7 +28,6 @@ export default function EditEntryPage() {
     return () => unsub();
   }, []);
 
-  // if not logged in (after auth known), send to login w/ redirect back
   useEffect(() => {
     if (!authReady) return;
     if (!user) router.replace(`/login?next=/entries/${id}/edit`);
@@ -67,13 +67,15 @@ export default function EditEntryPage() {
 
   return (
     <div className="container">
-      <div className="page-hero">
-        <h1>Edit Session</h1>
-        <div className="actions">
-          <button type="button" className="btn btn-ghost" onClick={() => router.push('/tracker')}>
-            Cancel
-          </button>
-        </div>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Edit Session</h1>
+        <button
+          type="button"
+          className={`btn btn-ghost ${styles.action}`}
+          onClick={() => router.push('/tracker')}
+        >
+          Cancel
+        </button>
       </div>
 
       {loading && <div className="card">Loading…</div>}
@@ -87,9 +89,7 @@ export default function EditEntryPage() {
         </div>
       )}
 
-      {!loading && !err && entry && (
-        <EditEntryForm entry={entry} />
-      )}
+      {!loading && !err && entry && <EditEntryForm entry={entry} />}
     </div>
   );
 }

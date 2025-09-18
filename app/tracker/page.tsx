@@ -49,14 +49,11 @@ export default function TrackerPage() {
     if (!u) return;
 
     const entries: Entry[] = await listEntriesForDay(u.uid, startOfTodayMs());
-
-    // total grams (smokeables)
     const grams = entries.reduce(
       (acc, e) => acc + (typeof e.weight === 'number' ? e.weight : 0),
       0
     );
-
-    // total edible mg (method === 'Edible')
+    
     const mg = entries.reduce((acc, e) => {
       if (String(e.method) !== 'Edible') return acc;
       const dose = (e as any).thcMg;

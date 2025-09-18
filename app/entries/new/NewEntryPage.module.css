@@ -1,0 +1,20 @@
+.header {
+  position: relative;
+  display: flex;
+  justify-content: center; /* centers the H1 */
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.title {
+  margin: 0;
+  text-align: center;
+}
+
+/* Back button pinned to the right edge of the header */
+.back {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}

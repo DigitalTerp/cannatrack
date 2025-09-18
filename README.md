@@ -69,17 +69,17 @@ Getting Started (local)
 
 ## Roadmap
 
-- **Richer Insights** (per-method breakdowns, cultivar scoring, dose totals by time of day)
+- **Richer Insights** 
 
 - **CSV Import/Export**
 
-- **Tagging & Advanced Filters** (sessions & cultivars)
+- **User Settings** 
 
-- **Favorites / Pinning** (Quick access to go-to cultivars)
+- **My Purchase Tracker** A way of adding your Purchase and giving estimated levels of what remains for that cultivar and shows indications when it may need to be refilled for either same or alternative cultivars
 
-- **User Settings** (Default method/dose, preferred units)
+- **Optional Photos/Gallery** Per session 
 
-- **Optional Photos/Gallery** Per session
+
 
 
 I’ll keep adding features and sanding off rough edges. Ideas welcome—open an issue.
@@ -213,3 +213,42 @@ This release marks one of the biggest updates to *My Canna Tracker* yet. 🎉
   - Codebase refactors for readability and maintainability.
 
 This update makes My Canna Tracker more personal, more useful for edible consumers, and more polished overall.
+
+**September 17, 2025** 
+
+### Forms & UI Enhancements
+- **CSS Cleanup & Consistency**  
+  - Introduced a shared `FormEntry.module.css` to unify styles across both **Add Entry** and **Edit Entry** forms.  
+  - Removed duplicate inline styles and migrated to consistent CSS classes.  
+  - Improved field spacing for better readability and usability.  
+
+- **Personalization**  
+  - Both forms now use the `niceName()` const from the tracker page to display a personalized greeting (e.g., “Hi, Keith!”).  
+  - Edit form header updated to show **cultivar name** or edible entry name directly in the page title for clearer context.  
+
+- **Mobile Responsiveness**  
+  - Centered forms and action buttons on small screens.  
+  - Fixed button sizing so **primary** and **ghost** buttons now scale consistently.  
+  - Adjusted grids to collapse more gracefully for mobile users.
+
+- **UI Tweaks**  
+  - Added breathing room between fields to avoid cramped layouts.  
+  - Improved alignment of headers and inline action buttons (Back/Cancel).  
+  - Simplified redundant form headers (e.g., replaced “Log Session” with personalized or contextual alternatives).
+
+### Insights Page Improvements
+- **Weight Conversion Helper**  
+  - Added `formatWeightGraph()` , `formatWeightTotal()`, and `G_PER_OZ` constants to convert **28 g = 1 oz**.  
+  - Tooltips and badges now display weights as **oz (g)** once totals exceed 28 grams.  
+
+- **UI & CSS Enhancements**  
+  - Improved chart readability with spacing, font sizing, and tooltips.  
+  - Updated styles to be more visually balanced and easier to scan.  
+
+- **Ordering & Clarity**  
+  - Re-ordered **Consumption Method** chart categories alphabetically.  
+  - Adjusted **Cultivar Type Consumed** 
+
+---
+
+These changes bring a more polished, consistent, and personalized experience across session logging and insights, while making the data easier to read and understand at a glance.

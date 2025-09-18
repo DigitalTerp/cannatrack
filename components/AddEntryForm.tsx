@@ -1,22 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { createEntry, listStrains } from '@/lib/firestore';
 import type { CreateEntryInput, Method, StrainType, Strain, EdibleType } from '@/lib/types';
-import { auth } from '@/lib/firebase';
+import styles from './FormEntry.module.css';
 
 /* ---------- datetime-local helpers ---------- */
 function toDatetimeLocal(ms: number): string {
   const d = new Date(ms);
   if (isNaN(d.getTime())) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  const MM = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mm = pad(d.getMinutes());
-  return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function fromDatetimeLocal(v: string): number | null {
   if (!v) return null;
@@ -25,9 +22,9 @@ function fromDatetimeLocal(v: string): number | null {
 }
 
 /* ---------- Options ---------- */
-const METHOD_OPTIONS: Method[] = ['Pre-Roll', 'Bong', 'Pipe', 'Vape', 'Dab']; // 'Edible' is auto-set for edible sessions
+const METHOD_OPTIONS: Method[] = ['Pre-Roll', 'Bong', 'Pipe', 'Vape', 'Dab'];
 const TYPE_OPTIONS: StrainType[] = ['Indica', 'Hybrid', 'Sativa'];
-const EDIBLE_TYPES: EdibleType[] = ['Gummy', 'Chocolate', 'Pill', 'Beverage']; // (Firestore will coerce to 'Other' if needed)
+const EDIBLE_TYPES: EdibleType[] = ['Gummy', 'Chocolate', 'Pill', 'Beverage'];
 
 /* ---------- helpers ---------- */
 const toNum = (s: string) => {
@@ -36,32 +33,53 @@ const toNum = (s: string) => {
   return Number.isFinite(n) ? n : undefined;
 };
 
+function niceName() {
+  const u = auth.currentUser;
+  const fromProfile = u?.displayName?.trim();
+  if (fromProfile) return fromProfile.split(/\s+/)[0];
+  const email = u?.email || '';
+  const raw = email.split('@')[0] || 'there';
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
 export default function AddEntryForm() {
   const router = useRouter();
-  const [authed, setAuthed] = useState<boolean>(!!auth.currentUser);
 
-  // auth state watcher
+  // ---------- Auth / User ----------
+  const [ready, setReady] = useState(false);
+  const [uid, setUid] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string>('there');
+
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged((u) => setAuthed(!!u));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        router.replace('/login?next=/tracker');
+      } else {
+        setUid(u.uid);
+        setDisplayName(niceName());
+        setReady(true);
+      }
+    });
     return () => unsub();
-  }, []);
+  }, [router]);
 
   // ---------- Cultivar picker (for smokeables only) ----------
   const [strains, setStrains] = useState<Strain[]>([]);
   const [selectedStrainId, setSelectedStrainId] = useState<string>('');
 
-  useEffect(() => {
-    const uid = auth.currentUser?.uid;
+  const loadStrains = useCallback(async () => {
     if (!uid) return;
-    (async () => {
-      try {
-        const list = await listStrains(uid);
-        setStrains(list);
-      } catch {
-        // ignore
-      }
-    })();
-  }, [authed]);
+    try {
+      const list = await listStrains(uid);
+      setStrains(list);
+    } catch {
+      // ignore
+    }
+  }, [uid]);
+
+  useEffect(() => {
+    loadStrains();
+  }, [loadStrains]);
 
   // ---------- Session Type ----------
   const [sessionType, setSessionType] = useState<'smokeable' | 'edible'>('smokeable');
@@ -73,12 +91,12 @@ export default function AddEntryForm() {
   // ---------- Smokeable fields ----------
   const [strainName, setStrainName] = useState('');
   const [strainType, setStrainType] = useState<StrainType>('Hybrid');
-  const [brand, setBrand] = useState('');        // Cultivator (also used for edibles)
+  const [brand, setBrand] = useState('');
   const [lineage, setLineage] = useState('');
   const [thcPercent, setThcPercent] = useState('');
   const [thcaPercent, setThcaPercent] = useState('');
   const [method, setMethod] = useState<Method>('Pre-Roll');
-  const [weight, setWeight] = useState('');      // grams
+  const [weight, setWeight] = useState(''); // grams
   const [effects, setEffects] = useState('');
   const [aroma, setAroma] = useState('');
   const [flavors, setFlavors] = useState('');
@@ -86,19 +104,11 @@ export default function AddEntryForm() {
 
   // ---------- Edible-only fields ----------
   const [edibleName, setEdibleName] = useState('');
-  const [edibleType, setEdibleType] = useState<EdibleType>('Gummy'); // category (Gummy/Chocolate/...)
-  const [thcMg, setThcMg] = useState(''); // user input; we send this as edibleMg
+  const [edibleType, setEdibleType] = useState<EdibleType>('Gummy');
+  const [thcMg, setThcMg] = useState(''); 
 
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  // Redirect if unauthenticated
-  useEffect(() => {
-    if (!authed) {
-      const t = setTimeout(() => router.push('/login?next=/tracker'), 0);
-      return () => clearTimeout(t);
-    }
-  }, [authed, router]);
 
   // When user picks a previous cultivar, pre-fill fields (still editable)
   function handlePickStrain(id: string) {
@@ -111,14 +121,10 @@ export default function AddEntryForm() {
     setBrand(s.brand || '');
     setLineage(s.lineage || '');
     setThcPercent(
-      typeof s.thcPercent === 'number' && Number.isFinite(s.thcPercent)
-        ? String(s.thcPercent)
-        : ''
+      typeof s.thcPercent === 'number' && Number.isFinite(s.thcPercent) ? String(s.thcPercent) : ''
     );
     setThcaPercent(
-      typeof s.thcaPercent === 'number' && Number.isFinite(s.thcaPercent)
-        ? String(s.thcaPercent)
-        : ''
+      typeof s.thcaPercent === 'number' && Number.isFinite(s.thcaPercent) ? String(s.thcaPercent) : ''
     );
   }
 
@@ -126,7 +132,6 @@ export default function AddEntryForm() {
     e.preventDefault();
     setErr(null);
 
-    const uid = auth.currentUser?.uid;
     if (!uid) {
       setErr('Not signed in. Please log in first.');
       router.push('/login?next=/tracker');
@@ -138,27 +143,23 @@ export default function AddEntryForm() {
     let payload: CreateEntryInput;
 
     if (sessionType === 'edible') {
-      // Edible session — Firestore will store edibleType (category) and edibleMg
       payload = {
         time: timeMs,
         method: 'Edible',
         isEdibleSession: true,
-        // Use strainName so the UI shows the edible name consistently
-        strainName: edibleName.trim(),
-        strainType, // keep I/H/S classification separate from edible category
+        strainName: edibleName.trim(), // keep UI consistent
+        strainType,
         brand: brand.trim() || undefined,
 
         edibleName: edibleName.trim(),
-        edibleType,                // category: Gummy/Chocolate/Pill/Beverage
-        edibleMg: toNum(thcMg),    // <— IMPORTANT: send edibleMg (not thcMg)
+        edibleType,
+        edibleMg: toNum(thcMg),
 
-        // no smokeable-only fields for edibles
+        // smokeable-only fields omitted
         weight: undefined,
         lineage: undefined,
         thcPercent: undefined,
         thcaPercent: undefined,
-
-        // edibles don’t track these
         effects: undefined,
         aroma: undefined,
         flavors: undefined,
@@ -167,7 +168,6 @@ export default function AddEntryForm() {
         notes: notes.trim() || undefined,
       } as CreateEntryInput;
     } else {
-      // Smokeable session — original fields preserved
       payload = {
         time: timeMs,
         method,
@@ -179,18 +179,9 @@ export default function AddEntryForm() {
         thcaPercent: toNum(thcaPercent),
         weight: toNum(weight),
 
-        effects: effects
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        aroma: aroma
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        flavors: flavors
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        effects: effects.split(',').map((s) => s.trim()).filter(Boolean),
+        aroma: aroma.split(',').map((s) => s.trim()).filter(Boolean),
+        flavors: flavors.split(',').map((s) => s.trim()).filter(Boolean),
 
         rating: toNum(rating),
         notes: notes.trim() || undefined,
@@ -208,30 +199,30 @@ export default function AddEntryForm() {
     }
   }
 
-  return (
-    <form className="card" onSubmit={onSubmit} noValidate>
-      <h2 style={{ marginTop: 0 }}>Log Session</h2>
+  if (!ready) return null;
 
-      {/* Session type toggle */}
-      <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1rem' }}>
+  return (
+    <form className={`card ${styles.formRoot}`} onSubmit={onSubmit} noValidate>
+      <h2 className={styles.heading}>What did you consume, {displayName}?</h2>
+
+      <div className={styles.toggleRow}>
         <button
           type="button"
-          className={`btn ${sessionType === 'smokeable' ? 'btn-primary' : 'btn-ghost'}`}
+          className={`btn ${sessionType === 'smokeable' ? 'btn-primary' : 'btn-ghost'} ${styles.btnWide}`}
           onClick={() => setSessionType('smokeable')}
         >
-          Smokeable
+          SMOKEABLE
         </button>
         <button
           type="button"
-          className={`btn ${sessionType === 'edible' ? 'btn-primary' : 'btn-ghost'}`}
+          className={`btn ${sessionType === 'edible' ? 'btn-primary' : 'btn-ghost'} ${styles.btnWide}`}
           onClick={() => setSessionType('edible')}
         >
-          Edible
+          EDIBLE
         </button>
       </div>
 
-      {/* Time */}
-      <div style={{ marginBottom: '1rem' }}>
+      <div className={styles.field}>
         <label htmlFor="time">Time</label>
         <input
           id="time"
@@ -241,12 +232,11 @@ export default function AddEntryForm() {
           onChange={(e) => setTimeLocal(e.target.value)}
           required
         />
-        <div className="help">Auto-filled to current date and time — adjust if needed.</div>
+        <div className={styles.help}>Auto-filled to current date and time — adjust if needed.</div>
       </div>
 
-      {/* Smokeable: previous cultivars */}
       {sessionType === 'smokeable' && strains.length > 0 && (
-        <div style={{ marginBottom: '1rem' }}>
+        <div className={styles.field}>
           <label htmlFor="prev-cultivar">Previous Cultivars (optional)</label>
           <select
             id="prev-cultivar"
@@ -262,7 +252,7 @@ export default function AddEntryForm() {
               </option>
             ))}
           </select>
-          <div className="help">
+          <div className={styles.help}>
             Selecting one just pre-fills the fields. Each session is still saved separately.
           </div>
         </div>
@@ -271,7 +261,7 @@ export default function AddEntryForm() {
       {/* Smokeable fields */}
       {sessionType === 'smokeable' && (
         <>
-          <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: '1fr 1fr' }}>
+          <div className={styles.gridTwo}>
             <div>
               <label htmlFor="strainName">Cultivar Name</label>
               <input
@@ -352,14 +342,7 @@ export default function AddEntryForm() {
           </div>
 
           {/* method + weight */}
-          <div
-            style={{
-              display: 'grid',
-              gap: '0.75rem',
-              gridTemplateColumns: '1fr 1fr',
-              marginTop: '0.75rem',
-            }}
-          >
+          <div className={`${styles.gridTwo} ${styles.section}`}>
             <div>
               <label htmlFor="method">Method of Consumption</label>
               <select
@@ -393,7 +376,7 @@ export default function AddEntryForm() {
           </div>
 
           {/* effects, aroma, flavors */}
-          <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.75rem' }}>
+          <div className={`${styles.stack} ${styles.section}`}>
             <div>
               <label htmlFor="effects">Effects</label>
               <input
@@ -426,10 +409,8 @@ export default function AddEntryForm() {
             </div>
           </div>
 
-          {/* rating + notes */}
-          <div
-            style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: '1fr 1fr', marginTop: '0.75rem' }}
-          >
+          {/* rating */}
+          <div className={`${styles.gridTwo} ${styles.section}`}>
             <div>
               <label htmlFor="rating">Rating (0–10)</label>
               <input
@@ -452,7 +433,7 @@ export default function AddEntryForm() {
       {/* Edible fields */}
       {sessionType === 'edible' && (
         <>
-          <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: '1fr 1fr' }}>
+          <div className={styles.gridTwo}>
             <div>
               <label htmlFor="edibleName">Edible Name</label>
               <input
@@ -527,7 +508,7 @@ export default function AddEntryForm() {
       )}
 
       {/* Notes (common) */}
-      <div style={{ marginTop: '0.75rem' }}>
+      <div className={styles.section}>
         <label htmlFor="notes">Notes</label>
         <textarea
           id="notes"
@@ -538,18 +519,14 @@ export default function AddEntryForm() {
         />
       </div>
 
-      {err && (
-        <p className="error" style={{ marginTop: '0.5rem' }}>
-          {err}
-        </p>
-      )}
+      {err && <p className={styles.error}>{err}</p>}
 
-      <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-        <button className="btn btn-primary" type="submit" disabled={submitting}>
+      <div className={styles.actions}>
+        <button className={`btn btn-primary ${styles.btnWide}`} type="submit" disabled={submitting}>
           {submitting ? 'Saving…' : 'Save Session'}
         </button>
         <button
-          className="btn btn-ghost"
+          className={`btn btn-ghost ${styles.btnWide}`}
           type="button"
           onClick={() => router.push('/tracker')}
           disabled={submitting}
