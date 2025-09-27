@@ -1,0 +1,247 @@
+.section {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;  
+  text-align: center;     
+}
+
+.heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.loadingText {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.subtle {
+  color: #6b7280;
+  margin: 0;
+}
+
+.summary {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.grid {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.item {
+  padding: 1rem 1.25rem;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand {
+  color: #4b5563;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta,
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;  
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.metaChip {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  border-radius: 9999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  max-width: 100%;
+}
+.metaChipLabel {
+  font-weight: 600;
+  margin-right: 0.25rem;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .metaChip {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+  }
+}
+
+/* Footer actions (only Remove button now) */
+.footer {
+  margin-top: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* center the single action */
+}
+
+/* Ghosty danger button */
+.deleteBtn {
+  background: #b91c1c;
+  border: 1px solid transparent;
+  color: #fff; /* red-700 */
+  font-size: .90rem;
+  border-radius: 0.5rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.deleteBtn:hover {
+  background: #fee2e2; /* red-100 */
+}
+@media (prefers-color-scheme: dark) {
+  .deleteBtn:hover {
+    background: #7f1d1d;
+    color: #fee2e2;
+  }
+}
+
+@media (max-width: 640px) {
+  .titleRow {
+    flex-direction: row;   
+  }
+}
+
+.summaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 0.15rem 0 0.6rem 0;
+}
+
+.summaryPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.9rem;        /* larger than meta chips */
+  border-radius: 9999px;
+  font-size: 0.95rem;            /* a touch bigger */
+  font-weight: 700;              /* make it pop */
+  border: 1px solid transparent; /* set per-variant */
+  box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+}
+
+.pillLabel { opacity: 0.85; white-space: nowrap; }
+.pillValue { white-space: nowrap; }
+
+.pillCount {
+  background: linear-gradient(90deg, #eef2ff 0%, #e0e7ff 100%); /* indigo-50 → indigo-100 */
+  border-color: #c7d2fe; /* indigo-200 */
+  color: #1e3a8a;        /* indigo-900 */
+}
+
+.pillSpent {
+  background: linear-gradient(90deg, #ecfdf5 0%, #d1fae5 100%); 
+  border-color: #a7f3d0; /* emerald-200 */
+  color: #065f46;        /* emerald-800 */
+}
+
+@media (prefers-color-scheme: dark) {
+  .pillCount {
+    background: linear-gradient(90deg, #1e293b 0%, #111827 100%); /* slate-ish */
+    border-color: #334155; /* slate-700 */
+    color: #c7d2fe;        /* indigo-200 text */
+  }
+  .pillSpent {
+    background: linear-gradient(90deg, #064e3b 0%, #052e2b 100%); /* deep emerald tones */
+    border-color: #065f46;
+    color: #fff;        /* emerald-200 text */
+  }
+}
+
+.description {
+  margin: 0.25rem 0 0.6rem 0;
+  font-size: 0.95rem;
+  opacity: 0.9;
+  max-width: 44rem;
+}
+
+.summaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 0.15rem 0 0.6rem 0;
+}
+.summaryPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+}
+.pillLabel { opacity: 0.85; white-space: nowrap; }
+.pillValue { white-space: nowrap; }
+
+.pillCount {
+  background: linear-gradient(90deg, #eef2ff 0%, #e0e7ff 100%);
+  border-color: #c7d2fe;
+  color: #1e3a8a;
+}
+
+.pillSpent {
+  background: linear-gradient(90deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+/* NEW: Quantity pill (sky → violet) */
+.pillQty {
+  background: linear-gradient(90deg, #e0f2fe 0%, #e9d5ff 100%); /* sky-100 → violet-200 */
+  border-color: #bae6fd;  /* sky-200 */
+  color: #0f172a;         /* slate-900 for contrast */
+}
+
+@media (prefers-color-scheme: dark) {
+  .pillCount {
+    background: linear-gradient(90deg, #1e293b 0%, #111827 100%);
+    border-color: #334155;
+    color: #c7d2fe;
+  }
+  .pillSpent {
+    background: linear-gradient(90deg, #064e3b 0%, #052e2b 100%);
+    border-color: #065f46;
+    color: #a7f3d0;
+  }
+  .pillQty {
+    background: linear-gradient(90deg, #0b3a5b 0%, #3b2a64 100%);
+    border-color: #334155;
+    color: #e5e7eb;
+  }
+}

@@ -15,6 +15,5 @@ export default function RootGate() {
     return () => unsub();
   }, [router]);
 
-  // optional: small placeholder while deciding
   return null;
 }

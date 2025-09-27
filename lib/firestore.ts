@@ -10,11 +10,12 @@ import {
   query,
   updateDoc,
   where,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Entry, Strain, StrainType } from './types';
 
-/* ----------------------------- UTILITIES ----------------------------- */
+
 const now = () => Date.now();
 const isFiniteNumber = (v: any): v is number => typeof v === 'number' && Number.isFinite(v);
 
@@ -34,7 +35,6 @@ function stripUndefined<T>(obj: T): T {
   return out as T;
 }
 
-/** Accepts number or numeric string; strips "g"/"grams" if present. */
 function parseWeightToNumber(v: any): number | undefined {
   if (v == null) return undefined;
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -46,7 +46,6 @@ function parseWeightToNumber(v: any): number | undefined {
   return undefined;
 }
 
-/** Accepts number or numeric string; strips "mg"/"milligram(s)" if present. */
 function parseMgToNumber(v: any): number | undefined {
   if (v == null) return undefined;
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -63,7 +62,6 @@ function parseMgToNumber(v: any): number | undefined {
   return undefined;
 }
 
-/** Convert a field to number if possible; otherwise undefined. */
 function toNum(v: any): number | undefined {
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
   if (typeof v === 'string' && v.trim() !== '') {
@@ -73,7 +71,6 @@ function toNum(v: any): number | undefined {
   return undefined;
 }
 
-/** Normalize to a string array (comma-separated string or array of strings). */
 function toList(v: any): string[] | undefined {
   if (Array.isArray(v)) {
     const out = v
@@ -91,7 +88,6 @@ function toList(v: any): string[] | undefined {
   return undefined;
 }
 
-/** Indica/Hybrid/Sativa */
 function normalizeStrainType(v: any): StrainType | undefined {
   if (typeof v !== 'string') return undefined;
   const s = v.trim().toLowerCase();
@@ -101,7 +97,6 @@ function normalizeStrainType(v: any): StrainType | undefined {
   return undefined;
 }
 
-/** Edible category: Chocolate/Gummy/Pill/Beverage/Other */
 type EdibleCategory = 'Chocolate' | 'Gummy' | 'Pill' | 'Beverage' | 'Other';
 function normalizeEdibleCategory(v: any): EdibleCategory | undefined {
   if (typeof v !== 'string') return undefined;
@@ -114,10 +109,7 @@ function normalizeEdibleCategory(v: any): EdibleCategory | undefined {
   if (s === 'other') return 'Other';
   return undefined;
 }
-
-/** Best-effort edible category from multiple possible field names. */
 function coerceEdibleCategory(raw: any): EdibleCategory | undefined {
-  // Try known fields in priority order; ignore I/H/S strings accidentally saved into edibleType
   return (
     normalizeEdibleCategory(raw?.edibleType) ||
     normalizeEdibleCategory(raw?.edibleKind) ||
@@ -127,11 +119,33 @@ function coerceEdibleCategory(raw: any): EdibleCategory | undefined {
   );
 }
 
-/* --------------------------- refs/helpers --------------------------- */
 const entriesCol = (uid: string) => collection(db, 'users', uid, 'entries');
 const strainsCol = (uid: string) => collection(db, 'users', uid, 'strains');
 const entryRef   = (uid: string, entryId: string) => doc(db, 'users', uid, 'entries', entryId);
 const strainRef  = (uid: string, strainId: string) => doc(db, 'users', uid, 'strains', strainId);
+
+const purchasesCol = (uid: string) => collection(db, 'users', uid, 'purchases');
+const purchaseRef  = (uid: string, purchaseId: string) => doc(db, 'users', uid, 'purchases', purchaseId);
+
+const toCents = (v: any): number | undefined => {
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+  return Number.isFinite(n) ? Math.round(n * 100) : undefined;
+};
+
+const G_PER_OZ = 28;
+const STEP_EIGHTH = 3.5;
+const STEP_QUARTER = 7;
+
+function snapPurchaseGrams(g: number): number {
+  const grams = Math.max(0, Number(g) || 0);
+  if (grams <= G_PER_OZ + 1e-9) {
+    const steps = Math.round(grams / STEP_EIGHTH);
+    return Number((steps * STEP_EIGHTH).toFixed(2));
+  }
+  const over = grams;
+  const steps = Math.round(over / STEP_QUARTER);
+  return Number((steps * STEP_QUARTER).toFixed(2));
+}
 
 /* --------------------------- Cultivars ( Strains )--------------------------- */
 
@@ -150,12 +164,10 @@ type UpsertStrainInput = {
   notes?: string;
 };
 
-/** Create or update a cultivar by name (case-insensitive). Returns the doc ID. */
 export async function upsertStrainByName(uid: string, input: UpsertStrainInput): Promise<string> {
   const name = input.name.trim();
   const nameLower = name.toLowerCase();
 
-  // find by modern (nameLower) or legacy (name_lc)
   let found = await getDocs(query(strainsCol(uid), where('nameLower', '==', nameLower), limit(1)));
   if (found.empty) {
     found = await getDocs(query(strainsCol(uid), where('name_lc', '==', nameLower), limit(1)));
@@ -256,13 +268,6 @@ export async function deleteStrain(uid: string, strainId: string): Promise<void>
   await deleteDoc(strainRef(uid, strainId));
 }
 
-/* ------------------------------- ENTRIES ------------------------------- */
-
-/**
- * Create a new entry (session).
- * - Smokeables: behaves like before (and upserts cultivar).
- * - Edibles: saves edible fields and **does not** upsert cultivar.
- */
 export async function createEntry(
   uid: string,
   payload: Omit<Entry, 'id' | 'createdAt' | 'updatedAt' | 'userId'>
@@ -275,7 +280,6 @@ export async function createEntry(
     ? parseWeightToNumber((payload as any).weight ?? (payload as any).dose)
     : undefined;
 
-  // Normalize cultivar details (used for smokeables only)
   const strainNameRaw = (payload as any).strainName?.trim?.() || '';
   const strainType = normalizeStrainType((payload as any).strainType) || 'Hybrid';
   const brand      = (payload as any).brand?.trim?.() || undefined;
@@ -289,16 +293,13 @@ export async function createEntry(
   const thcaPercent = toNum((payload as any).thcaPercent);
   const cbdPercent  = toNum((payload as any).cbdPercent);
 
-  // ---- Edible-specific fields ----
   const edibleName = (payload as any).edibleName?.trim?.() || undefined;
-  // CATEGORY (Chocolate/Gummy/...) goes into edibleType (and mirrored to edibleKind)
   const edibleCategory: EdibleCategory | undefined =
     coerceEdibleCategory(payload as any) ||
-    normalizeEdibleCategory((payload as any).edibleType) || // if caller already sends proper category
+    normalizeEdibleCategory((payload as any).edibleType) ||
     undefined;
   const edibleMg = parseMgToNumber((payload as any).edibleMg ?? (payload as any).dose ?? (payload as any).mg);
 
-  // Upsert cultivar ONLY for smokeables and when we have a name
   let strainId = (payload as any).strainId as string | undefined;
   if (!isEdible && strainNameRaw) {
     try {
@@ -316,9 +317,7 @@ export async function createEntry(
         rating,
         notes,
       });
-    } catch {
-      // don't block entry creation if strain upsert fails
-    }
+    } catch {}
   }
 
   const data = stripUndefined({
@@ -327,11 +326,10 @@ export async function createEntry(
     time: isFiniteNumber((payload as any).time) ? (payload as any).time : now(),
     method: methodStr || (isEdible ? 'Edible' : (payload as any).method) || 'Pre-Roll',
 
-    // --- Common (kept on entry) ---
     strainId: !isEdible ? (strainId || (payload as any).strainId || undefined) : undefined,
     strainName: !isEdible ? strainNameRaw : undefined,
     strainNameLower: !isEdible && strainNameRaw ? strainNameRaw.toLowerCase() : undefined,
-    strainType, // I/H/S always kept here
+    strainType,
     brand,
     brandLower: brand ? brand.toLowerCase() : undefined,
     lineage,
@@ -344,15 +342,13 @@ export async function createEntry(
     rating,
     notes,
 
-    // --- Measurements ---
-    weight,      // grams (smokeables)
-    edibleMg,    // mg (edibles)
+    weight,
+    edibleMg,
 
-    // --- Edible flags/meta ---
     isEdibleSession: isEdible || undefined,
     edibleName: isEdible ? edibleName || strainNameRaw || undefined : undefined,
-    edibleType: isEdible ? (edibleCategory ?? 'Other') : undefined, // <- CATEGORY saved here
-    edibleKind: isEdible ? (edibleCategory ?? 'Other') : undefined, // mirror for compatibility
+    edibleType: isEdible ? (edibleCategory ?? 'Other') : undefined,
+    edibleKind: isEdible ? (edibleCategory ?? 'Other') : undefined,
 
     createdAt: now(),
     updatedAt: now(),
@@ -380,7 +376,6 @@ export async function updateEntry(
     ? parseWeightToNumber((patch as any).weight ?? (patch as any).dose)
     : undefined;
 
-  // smokeable-only cultivar fields
   const strainName = !isEdiblePatch ? (patch as any).strainName?.trim?.() : undefined;
   const strainType = normalizeStrainType((patch as any).strainType) || 'Hybrid';
   const brand      = !isEdiblePatch ? (patch as any).brand?.trim?.() : undefined;
@@ -397,7 +392,6 @@ export async function updateEntry(
   const thcaPercent = !isEdiblePatch ? toNum((patch as any).thcaPercent) : undefined;
   const cbdPercent  = !isEdiblePatch ? toNum((patch as any).cbdPercent)  : undefined;
 
-  // edible fields (CATEGORY goes to edibleType & edibleKind)
   const edibleName = isEdiblePatch ? (patch as any).edibleName?.trim?.() : undefined;
   const edibleCategory: EdibleCategory | undefined = isEdiblePatch
     ? (coerceEdibleCategory(patch as any) ||
@@ -412,7 +406,6 @@ export async function updateEntry(
     method: methodStr || (patch as any).method,
     weight,
 
-    // smokeable-only cultivar fields
     strainName,
     strainNameLower: typeof strainName === 'string' ? strainName.toLowerCase() : undefined,
     brand,
@@ -422,8 +415,7 @@ export async function updateEntry(
     thcaPercent,
     cbdPercent,
 
-    // common
-    strainType, // keep I/H/S on entry
+    strainType,
     effects,
     flavors,
     aroma,
@@ -431,16 +423,14 @@ export async function updateEntry(
     notes,
     updatedAt: now(),
 
-    // edible fields
     isEdibleSession: isEdiblePatch ? true : (patch as any).isEdibleSession,
     edibleName,
-    edibleType: edibleCategory, // CATEGORY saved here
-    edibleKind: edibleCategory, // mirror
+    edibleType: edibleCategory,
+    edibleKind: edibleCategory,
     edibleMg,
   });
   await updateDoc(entryRef(uid, entryId), norm as any);
 
-  // Refresh the strain doc ONLY for smokeables
   const shouldTouchStrain =
     !isEdiblePatch &&
     (typeof strainName === 'string' ||
@@ -476,9 +466,7 @@ export async function updateEntry(
           rating,
           notes,
         });
-      } catch {
-        // ignore cultivar upsert errors
-      }
+      } catch {}
     }
   }
 }
@@ -508,7 +496,6 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
       time: isFiniteNumber(raw?.time) ? raw.time : now(),
       method: raw?.method ?? 'Pre-Roll',
 
-      // linkage & identity
       strainId: !isEdible ? (raw?.strainId ?? undefined) : undefined,
       strainName: !isEdible ? (raw?.strainName ?? '') : '',
       strainType: normalizeStrainType(raw?.strainType) || 'Hybrid',
@@ -518,7 +505,6 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
             (raw?.strainName ? String(raw.strainName).toLowerCase() : undefined))
           : undefined,
 
-      // curated convenience fields kept on entry (smokeables)
       brand: !isEdible ? (raw?.brand ?? undefined) : undefined,
       brandLower: !isEdible
         ? (raw?.brandLower ?? (raw?.brand ? String(raw.brand).toLowerCase() : undefined))
@@ -528,10 +514,8 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
       thcaPercent: !isEdible && isFiniteNumber(raw?.thcaPercent) ? raw.thcaPercent : undefined,
       cbdPercent: !isEdible && isFiniteNumber(raw?.cbdPercent) ? raw.cbdPercent : undefined,
 
-      // normalized measurements
       weight: !isEdible ? parseWeightToNumber(raw?.weight ?? raw?.dose) : undefined,
 
-      // experience
       moodBefore: raw?.moodBefore ?? undefined,
       moodAfter: raw?.moodAfter ?? undefined,
       effects: Array.isArray(raw?.effects) ? raw.effects : undefined,
@@ -541,15 +525,13 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
       notes: raw?.notes ?? undefined,
     } as Entry;
 
-    // attach edible fields for convenience (not in Entry type)
     if (isEdible) {
       (entry as any).isEdibleSession = true;
       (entry as any).edibleName = raw?.edibleName ?? raw?.strainName ?? undefined;
 
-      // CATEGORY (Chocolate/Gummy/...) — prefer any correct field, ignore I/H/S mistakes
       const cat = coerceEdibleCategory(raw);
-      (entry as any).edibleType = cat; // what the app reads
-      (entry as any).edibleKind = cat; // for compatibility
+      (entry as any).edibleType = cat;
+      (entry as any).edibleKind = cat;
 
       (entry as any).edibleMg = parseMgToNumber(raw?.edibleMg ?? raw?.dose ?? raw?.mg);
     }
@@ -562,16 +544,16 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
 }
 
 export async function listAllEntries(uid: string): Promise<Entry[]> {
-  const q = query(entriesCol(uid), orderBy('time', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const raw = d.data() as any;
-    return {
-      id: d.id,
-      userId: uid,
-      ...(raw as Omit<Entry, 'id' | 'userId'>),
-    } as Entry;
-  });
+  const qy = query(entriesCol(uid), orderBy('time', 'desc'));
+  const snap = await getDocs(qy);
+
+  const rows = snap.docs.map((d) => ({
+    id: d.id,
+    userId: uid,
+    ...(d.data() as Omit<Entry, 'id' | 'userId'>),
+  })) as Entry[];
+
+  return rows.filter((e: any) => e?.isPurchaseArchive !== true && e?.hiddenFromDaily !== true);
 }
 
 export async function listEntriesBetween(
@@ -579,40 +561,258 @@ export async function listEntriesBetween(
   startMs: number,
   endMs: number
 ): Promise<Entry[]> {
-  const q = query(
+  const qy = query(
     entriesCol(uid),
     where('time', '>=', startMs),
     where('time', '<', endMs),
     orderBy('time', 'desc')
   );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const raw = d.data() as any;
-    return {
-      id: d.id,
-      userId: uid,
-      ...(raw as Omit<Entry, 'id' | 'userId'>),
-    } as Entry;
-  });
+  const snap = await getDocs(qy);
+
+  const rows = snap.docs.map((d) => ({
+    id: d.id,
+    userId: uid,
+    ...(d.data() as Omit<Entry, 'id' | 'userId'>),
+  })) as Entry[];
+
+  
+  return rows.filter((e: any) => e?.isPurchaseArchive !== true && e?.hiddenFromDaily !== true);
 }
 
-/** List entries for the local calendar day containing `dayMs` (newest first). */
 export async function listEntriesForDay(uid: string, dayMs: number): Promise<Entry[]> {
   const start = new Date(dayMs); start.setHours(0, 0, 0, 0);
   const end = new Date(start);   end.setDate(start.getDate() + 1);
-  const q = query(
+
+  const qy = query(
     entriesCol(uid),
     where('time', '>=', start.getTime()),
     where('time', '<', end.getTime()),
     orderBy('time', 'desc')
   );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const raw = d.data() as any;
-    return {
-      id: d.id,
-      userId: uid,
-      ...(raw as Omit<Entry, 'id' | 'userId'>),
-    } as Entry;
+  const snap = await getDocs(qy);
+
+  const rows = snap.docs.map((d) => ({
+    id: d.id,
+    userId: uid,
+    ...(d.data() as Omit<Entry, 'id' | 'userId'>),
+  })) as Entry[];
+
+  return rows.filter((e: any) => e?.isPurchaseArchive !== true && e?.hiddenFromDaily !== true);
+}
+
+export async function createPurchase(
+  uid: string,
+  input: {
+    strainName: string;
+    strainType: StrainType;
+    lineage?: string;
+    brand?: string;           
+    thcPercent?: number;
+    thcaPercent?: number;
+    grams: number;            
+    dollars?: number;         
+    purchaseDateISO?: string; 
+  }
+): Promise<string> {
+
+  try {
+    await upsertStrainByName(uid, {
+      name: input.strainName,
+      type: input.strainType,
+      brand: input.brand,
+      lineage: input.lineage,
+      thcPercent: input.thcPercent,
+      thcaPercent: input.thcaPercent,
+    });
+  } catch {}
+
+  const snappedGrams = snapPurchaseGrams(Number(input.grams || 0));
+
+  const docData = stripUndefined({
+    strainName: input.strainName.trim(),
+    strainNameLower: input.strainName.trim().toLowerCase(),
+    strainType: input.strainType,
+    lineage: input.lineage,
+    brand: input.brand,
+    thcPercent: isFiniteNumber(input.thcPercent) ? input.thcPercent : undefined,
+    thcaPercent: isFiniteNumber(input.thcaPercent) ? input.thcaPercent : undefined,
+
+    totalGrams: snappedGrams,
+    remainingGrams: snappedGrams,
+    totalCostCents: toCents(input.dollars) ?? 0,
+
+    purchaseDate: input.purchaseDateISO || new Date().toISOString().slice(0, 10),
+    status: snappedGrams <= 0 ? 'depleted' : 'active',
+    createdAt: now(),
+    updatedAt: now(),
+  });
+
+  const res = await addDoc(purchasesCol(uid), docData as any);
+  return res.id;
+}
+
+export async function listPurchases(uid: string) {
+  const qy = query(purchasesCol(uid), orderBy('updatedAt', 'desc'));
+  const snap = await getDocs(qy);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+export async function incrementPurchaseGrams(uid: string, purchaseId: string, addGrams: number) {
+  await runTransaction(db, async (tx) => {
+    const ref = purchaseRef(uid, purchaseId);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('Purchase not found');
+    const p = snap.data() as any;
+
+    const snappedAdd = snapPurchaseGrams(Number(addGrams || 0));
+    const totalGrams = Number((p.totalGrams + snappedAdd).toFixed(2));
+    const remainingGrams = Number((p.remainingGrams + snappedAdd).toFixed(2));
+
+    tx.update(ref, {
+      totalGrams,
+      remainingGrams,
+      status: remainingGrams <= 0 ? 'depleted' : 'active',
+      updatedAt: now(),
+    });
   });
 }
+
+export async function createEntryWithPurchaseDeduction(
+  uid: string,
+  purchaseId: string | undefined,
+  payload: Omit<Entry, 'id' | 'createdAt' | 'updatedAt' | 'userId'>
+): Promise<string> {
+  if (!purchaseId) {
+    return createEntry(uid, payload);
+  }
+
+  const grams = parseWeightToNumber((payload as any).weight ?? (payload as any).dose) ?? 0;
+
+  return await runTransaction(db, async (tx) => {
+    const pref = purchaseRef(uid, purchaseId);
+    const psnap = await tx.get(pref);
+    if (!psnap.exists()) throw new Error('Linked purchase not found');
+    const p = psnap.data() as any;
+
+    const newRemaining = Number((p.remainingGrams - grams).toFixed(2));
+    if (newRemaining < -0.001) throw new Error('Not enough inventory in this purchase');
+
+    tx.update(pref, {
+      remainingGrams: Math.max(0, newRemaining),
+      status: newRemaining <= 0 ? 'depleted' : 'active',
+      updatedAt: now(),
+    });
+
+    const data = stripUndefined({
+      ...payload,
+      userId: uid,
+      time: isFiniteNumber((payload as any).time) ? (payload as any).time : now(),
+      createdAt: now(),
+      updatedAt: now(),
+      purchaseId,
+    });
+
+    const newEntryRef = doc(collection(db, 'users', uid, 'entries'));
+    tx.set(newEntryRef, data as any);
+    return newEntryRef.id;
+  });
+}
+
+export async function findPurchaseForStrain(
+  uid: string,
+  strainName: string
+): Promise<{ id: string } | undefined> {
+  const nameLower = (strainName || '').trim().toLowerCase();
+  if (!nameLower) return undefined;
+
+  const qy = query(
+    purchasesCol(uid),
+    where('strainNameLower', '==', nameLower),
+    where('remainingGrams', '>', 0),
+    orderBy('updatedAt', 'desc'),
+    limit(1)
+  );
+  const snap = await getDocs(qy);
+  if (snap.empty) return undefined;
+  return { id: snap.docs[0].id };
+}
+
+export async function createEntryAutoDeduct(
+  uid: string,
+  payload: Omit<Entry, 'id' | 'createdAt' | 'updatedAt' | 'userId'>
+): Promise<string> {
+  const methodStr = String((payload as any).method || '').toLowerCase();
+  const isEdible = methodStr === 'edible' || (payload as any).isEdibleSession === true;
+
+  if (isEdible) return createEntry(uid, payload);
+
+  const strainName = ((payload as any).strainName || '').trim();
+  if (!strainName) return createEntry(uid, payload);
+
+  const match = await findPurchaseForStrain(uid, strainName);
+  if (!match) return createEntry(uid, payload);
+
+  return createEntryWithPurchaseDeduction(uid, match.id, payload);
+}
+
+export async function finishAndArchivePurchase(
+  uid: string,
+  purchaseId: string
+): Promise<{ archivedEntryId: string; purchaseFinishedDateISO: string; removedPurchaseId: string }> {
+  if (!uid) throw new Error('finishAndArchivePurchase: missing uid');
+  if (!purchaseId) throw new Error('finishAndArchivePurchase: missing purchaseId');
+
+  return await runTransaction(db, async (tx) => {
+    const pref = purchaseRef(uid, purchaseId);
+    const psnap = await tx.get(pref);
+    if (!psnap.exists()) throw new Error('Purchase not found');
+    const p = psnap.data() as any;
+
+    const nowMs = now();
+    const purchaseFinishedDateISO = new Date(nowMs).toISOString().slice(0, 10);
+    const purchaseMadeDateISO: string | null = p?.purchaseDate ?? null;
+
+    const newEntryRef = doc(collection(db, 'users', uid, 'entries'));
+    tx.set(
+      newEntryRef,
+      stripUndefined({
+        userId: uid,
+        time: nowMs,
+        method: 'Purchase',
+        journalType: 'purchase-archive',
+        isPurchaseArchive: true,
+        hiddenFromDaily: true,
+        purchaseMadeDateISO,
+        purchaseFinishedDateISO,
+        purchaseFinishedAtMs: nowMs,
+        strainName: p.strainName || 'Untitled',
+        strainNameLower: (p.strainName || 'Untitled').toLowerCase(),
+        strainType: p.strainType || 'Hybrid',
+        brand: p.brand || undefined,
+        brandLower: p.brand ? p.brand.toLowerCase() : undefined,
+        lineage: p.lineage || undefined,
+        thcPercent: typeof p.thcPercent === 'number' ? p.thcPercent : undefined,
+        thcaPercent: typeof p.thcaPercent === 'number' ? p.thcaPercent : undefined,
+        purchaseId: pref.id,
+        purchaseSnapshot: {
+          totalGrams: p.totalGrams,
+          remainingGrams: p.remainingGrams,
+          totalCostCents: p.totalCostCents ?? 0,
+          purchaseDate: purchaseMadeDateISO,
+        },
+
+        createdAt: nowMs,
+        updatedAt: nowMs,
+      }) as any
+    );
+
+    tx.delete(pref);
+
+    return {
+      archivedEntryId: newEntryRef.id,
+      purchaseFinishedDateISO,
+      removedPurchaseId: purchaseId,
+    };
+  });
+}
+

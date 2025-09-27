@@ -55,6 +55,11 @@ export default function HeaderBar() {
     else go('/login?next=/entries/new');
   }, [go]);
 
+    const goLogPurchase = useCallback(() => {
+    if (auth.currentUser) go('/purchases/new');
+    else go('/login?next=/purchases/new');
+  }, [go]);
+
   const handleLogout = useCallback(async () => {
     try {
       await signOut(auth);
@@ -105,6 +110,7 @@ export default function HeaderBar() {
             <a className="btn btn-ghost" href="/tracker">Daily</a>
             <a className="btn btn-ghost" href="/strains">Cultivars</a>
             <a className="btn btn-ghost" href="/history">History</a>
+            <a className="btn btn-ghost" href="/purchases">Purchases</a> 
             <a className="btn btn-ghost" href="/insights">Insights</a>
 
             {user ? (
@@ -153,10 +159,15 @@ export default function HeaderBar() {
           <a href="/tracker" className="drawer-link" onClick={() => setOpen(false)}>Daily</a>
           <a href="/strains" className="drawer-link" onClick={() => setOpen(false)}>Cultivars</a>
           <a href="/history" className="drawer-link" onClick={() => setOpen(false)}>History</a>
+          <a href="/purchases" className="drawer-link" onClick={() => setOpen(false)}>Purchases</a>
           <a href="/insights" className="drawer-link" onClick={() => setOpen(false)}>Insights</a>
 
           <button className="btn btn-primary" onClick={goLogSession}>
             Log Session
+          </button>
+
+          <button className="btn btn-secondary" onClick={goLogPurchase}>
+            Log A Purchase
           </button>
 
           {user ? (

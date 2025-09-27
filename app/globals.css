@@ -132,7 +132,25 @@ button, .btn {
 .btn-primary { background: #059669; color: #fff; border-color: #047857; }
 .btn-primary:hover { background: #047857; }
 
-/* unified subtle button */
+.btn-secondary {
+  background: #3b82f6;     
+  color: #fff;
+  border-color: #2563eb;    
+}
+.btn-secondary:hover {
+  background: #2563eb;     
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn-secondary {
+    background: #2563eb; 
+    border-color: #1d4ed8;  
+  }
+  .btn-secondary:hover {
+    background: #1d4ed8;    
+  }
+}
+
 .btn-ghost { background: transparent; color: #374151; border-color: #d1d5db; }
 .btn-ghost:hover { background: #f3f4f6; }
 @media (prefers-color-scheme: dark) {

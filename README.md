@@ -96,6 +96,109 @@ Training complete. First lightsaber constructed. Time to explore the galaxy (of 
 
 ## *** Updates
 
+## Purchase Tracker Update — 2025-09-26
+
+We gave purchases the glow-up they deserve 🎉  
+Here’s a quick, human-friendly tour of what changed and why it’s nice to use.
+
+---
+
+### The big idea
+You can now track **what you bought**, **how much you used**, **when you finished it**, and **what it cost**—all in one clean flow. When you log sessions, your active purchase **counts down automatically**. When you’re done, you can **Finish & Archive** with one click.
+
+---
+
+### What you’ll notice first
+- **Purchases page (`/purchases`)**
+  - Cards are centered, roomier, and mobile-friendly.
+  - Each card shows **Potency**, **Purchased date**, **Spent**, and **$/g** in tidy pills.
+  - A slick progress bar shows how much you have left.
+  - Buttons match the site’s vibe (including a new blue **`.btn-secondary`** style).
+
+- **Finish & Archive**
+  - Marks the purchase **Depleted**, writes a historical snapshot, and removes it from “active.”
+  - The archived item shows up in **Purchase History** views.
+
+- **Purchase History (last 30 days)**
+  - The `PurchaseHistory` component now only shows the **past 30 days**, centered with bigger summary pills:
+    - **Past Purchases** · **Spent** · **Purchased** (auto-converts g → oz at 28g+).
+  - Dates are shown as **MM-DD-YYYY** across purchase UI.
+
+- **History page (`/history`)**
+  - Added a **Finished Purchases** section with its own **month navigator** (Prev / This / Next).
+  - Totals bar for **Purchases**, **Spent**, and **Purchased** for the selected month.
+  - You can remove archive entries here too.
+
+---
+
+### Under the hood (but still human)
+- **Auto-deduction:** logging a session reduces remaining grams on the related purchase so inventory stays honest.
+- **Archive entries:** saved to `users/{uid}/entries` with:
+  - `journalType: 'purchase-archive'`, `isPurchaseArchive: true`, `hiddenFromDaily: true`
+  - `purchaseId` (links back to the original)
+  - Finished timestamps (`purchaseFinishedDateISO` / `purchaseFinishedAtMs`) and a snapshot of grams/cost/date.
+- **No more duplicates:** we merge the canonical archive and legacy hidden entries and de-dupe them by ID.
+- **Firestore-safe writes:** we strip `undefined` before writing, so rules stay happy.
+
+---
+
+### Pages & components we touched
+- `app/purchases/page.tsx` — grouped by **Type** with the same **typeBadge** style (sized like our summary pills and labeled “Flower”).
+- `app/purchases/[id]/edit/page.tsx` — hydrates purchase data; styles match the new forms.
+- `components/PurchaseCard.tsx` — new layout, centered name, info pills, progress gradient.
+- `components/PurchaseHistory.tsx` — 30-day view, larger summary pills, centered cards.
+- `app/history/page.tsx` — keeps daily sessions and now includes **Finished Purchases** with a month picker.
+- **Landing page** — highlights the new Purchase Tracker (edibles info is still there, just not the headline).
+
+---
+
+### Styling polish
+- Moved stray inline styles into CSS Modules for consistency.
+- Ensured light/dark mode keep the **same sizes** (no shrinking pills in dark mode).
+- New secondary button you’ll see in a few places:
+  ```css
+  .btn-secondary { background: #3b82f6; color: #fff; border-color: #2563eb; }
+  .btn-secondary:hover { background: #2563eb; }
+
+**September 17, 2025** 
+
+### Forms & UI Enhancements
+- **CSS Cleanup & Consistency**  
+  - Introduced a shared `FormEntry.module.css` to unify styles across both **Add Entry** and **Edit Entry** forms.  
+  - Removed duplicate inline styles and migrated to consistent CSS classes.  
+  - Improved field spacing for better readability and usability.  
+
+- **Personalization**  
+  - Both forms now use the `niceName()` const from the tracker page to display a personalized greeting (e.g., “Hi, Keith!”).  
+  - Edit form header updated to show **cultivar name** or edible entry name directly in the page title for clearer context.  
+
+- **Mobile Responsiveness**  
+  - Centered forms and action buttons on small screens.  
+  - Fixed button sizing so **primary** and **ghost** buttons now scale consistently.  
+  - Adjusted grids to collapse more gracefully for mobile users.
+
+- **UI Tweaks**  
+  - Added breathing room between fields to avoid cramped layouts.  
+  - Improved alignment of headers and inline action buttons (Back/Cancel).  
+  - Simplified redundant form headers (e.g., replaced “Log Session” with personalized or contextual alternatives).
+
+### Insights Page Improvements
+- **Weight Conversion Helper**  
+  - Added `formatWeightGraph()` , `formatWeightTotal()`, and `G_PER_OZ` constants to convert **28 g = 1 oz**.  
+  - Tooltips and badges now display weights as **oz (g)** once totals exceed 28 grams.  
+
+- **UI & CSS Enhancements**  
+  - Improved chart readability with spacing, font sizing, and tooltips.  
+  - Updated styles to be more visually balanced and easier to scan.  
+
+- **Ordering & Clarity**  
+  - Re-ordered **Consumption Method** chart categories alphabetically.  
+  - Adjusted **Cultivar Type Consumed** 
+
+---
+
+These changes bring a more polished, consistent, and personalized experience across session logging and insights, while making the data easier to read and understand at a glance.
+
 **September 6, 2025** Insights, History, Tracker, Authentacticion Polish
 
 Insights
@@ -213,42 +316,3 @@ This release marks one of the biggest updates to *My Canna Tracker* yet. 🎉
   - Codebase refactors for readability and maintainability.
 
 This update makes My Canna Tracker more personal, more useful for edible consumers, and more polished overall.
-
-**September 17, 2025** 
-
-### Forms & UI Enhancements
-- **CSS Cleanup & Consistency**  
-  - Introduced a shared `FormEntry.module.css` to unify styles across both **Add Entry** and **Edit Entry** forms.  
-  - Removed duplicate inline styles and migrated to consistent CSS classes.  
-  - Improved field spacing for better readability and usability.  
-
-- **Personalization**  
-  - Both forms now use the `niceName()` const from the tracker page to display a personalized greeting (e.g., “Hi, Keith!”).  
-  - Edit form header updated to show **cultivar name** or edible entry name directly in the page title for clearer context.  
-
-- **Mobile Responsiveness**  
-  - Centered forms and action buttons on small screens.  
-  - Fixed button sizing so **primary** and **ghost** buttons now scale consistently.  
-  - Adjusted grids to collapse more gracefully for mobile users.
-
-- **UI Tweaks**  
-  - Added breathing room between fields to avoid cramped layouts.  
-  - Improved alignment of headers and inline action buttons (Back/Cancel).  
-  - Simplified redundant form headers (e.g., replaced “Log Session” with personalized or contextual alternatives).
-
-### Insights Page Improvements
-- **Weight Conversion Helper**  
-  - Added `formatWeightGraph()` , `formatWeightTotal()`, and `G_PER_OZ` constants to convert **28 g = 1 oz**.  
-  - Tooltips and badges now display weights as **oz (g)** once totals exceed 28 grams.  
-
-- **UI & CSS Enhancements**  
-  - Improved chart readability with spacing, font sizing, and tooltips.  
-  - Updated styles to be more visually balanced and easier to scan.  
-
-- **Ordering & Clarity**  
-  - Re-ordered **Consumption Method** chart categories alphabetically.  
-  - Adjusted **Cultivar Type Consumed** 
-
----
-
-These changes bring a more polished, consistent, and personalized experience across session logging and insights, while making the data easier to read and understand at a glance.

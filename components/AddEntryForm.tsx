@@ -4,9 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { createEntry, listStrains } from '@/lib/firestore';
+import { createEntry, listStrains, createEntryWithPurchaseDeduction } from '@/lib/firestore';
 import type { CreateEntryInput, Method, StrainType, Strain, EdibleType } from '@/lib/types';
 import styles from './FormEntry.module.css';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 /* ---------- datetime-local helpers ---------- */
 function toDatetimeLocal(ms: number): string {
@@ -21,7 +23,6 @@ function fromDatetimeLocal(v: string): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
-/* ---------- Options ---------- */
 const METHOD_OPTIONS: Method[] = ['Pre-Roll', 'Bong', 'Pipe', 'Vape', 'Dab'];
 const TYPE_OPTIONS: StrainType[] = ['Indica', 'Hybrid', 'Sativa'];
 const EDIBLE_TYPES: EdibleType[] = ['Gummy', 'Chocolate', 'Pill', 'Beverage'];
@@ -42,10 +43,27 @@ function niceName() {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
+async function findLatestEligiblePurchaseId(uid: string, strainName: string): Promise<string | null> {
+  if (!uid || !strainName) return null;
+  const nameLower = strainName.trim().toLowerCase();
+  try {
+    const qy = query(
+      collection(db, 'users', uid, 'purchases'),
+      where('strainNameLower', '==', nameLower)
+    );
+    const snap = await getDocs(qy);
+    const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+    const eligible = rows
+      .filter((p) => (p?.status ?? 'active') === 'active' && Number(p?.remainingGrams ?? 0) > 0)
+      .sort((a, b) => Number(b?.updatedAt ?? 0) - Number(a?.updatedAt ?? 0));
+    return eligible[0]?.id || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function AddEntryForm() {
   const router = useRouter();
-
-  // ---------- Auth / User ----------
   const [ready, setReady] = useState(false);
   const [uid, setUid] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string>('there');
@@ -63,7 +81,6 @@ export default function AddEntryForm() {
     return () => unsub();
   }, [router]);
 
-  // ---------- Cultivar picker (for smokeables only) ----------
   const [strains, setStrains] = useState<Strain[]>([]);
   const [selectedStrainId, setSelectedStrainId] = useState<string>('');
 
@@ -73,7 +90,6 @@ export default function AddEntryForm() {
       const list = await listStrains(uid);
       setStrains(list);
     } catch {
-      // ignore
     }
   }, [uid]);
 
@@ -81,14 +97,9 @@ export default function AddEntryForm() {
     loadStrains();
   }, [loadStrains]);
 
-  // ---------- Session Type ----------
   const [sessionType, setSessionType] = useState<'smokeable' | 'edible'>('smokeable');
-
-  // ---------- Common ----------
   const [timeLocal, setTimeLocal] = useState<string>(() => toDatetimeLocal(Date.now()));
   const [notes, setNotes] = useState('');
-
-  // ---------- Smokeable fields ----------
   const [strainName, setStrainName] = useState('');
   const [strainType, setStrainType] = useState<StrainType>('Hybrid');
   const [brand, setBrand] = useState('');
@@ -102,7 +113,6 @@ export default function AddEntryForm() {
   const [flavors, setFlavors] = useState('');
   const [rating, setRating] = useState('');
 
-  // ---------- Edible-only fields ----------
   const [edibleName, setEdibleName] = useState('');
   const [edibleType, setEdibleType] = useState<EdibleType>('Gummy');
   const [thcMg, setThcMg] = useState(''); 
@@ -110,7 +120,6 @@ export default function AddEntryForm() {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // When user picks a previous cultivar, pre-fill fields (still editable)
   function handlePickStrain(id: string) {
     setSelectedStrainId(id);
     if (!id) return;
@@ -147,15 +156,13 @@ export default function AddEntryForm() {
         time: timeMs,
         method: 'Edible',
         isEdibleSession: true,
-        strainName: edibleName.trim(), // keep UI consistent
+        strainName: edibleName.trim(),
         strainType,
         brand: brand.trim() || undefined,
 
         edibleName: edibleName.trim(),
         edibleType,
         edibleMg: toNum(thcMg),
-
-        // smokeable-only fields omitted
         weight: undefined,
         lineage: undefined,
         thcPercent: undefined,
@@ -167,30 +174,57 @@ export default function AddEntryForm() {
 
         notes: notes.trim() || undefined,
       } as CreateEntryInput;
-    } else {
-      payload = {
-        time: timeMs,
-        method,
-        strainName: strainName.trim(),
-        strainType,
-        brand: brand.trim() || undefined,
-        lineage: lineage.trim() || undefined,
-        thcPercent: toNum(thcPercent),
-        thcaPercent: toNum(thcaPercent),
-        weight: toNum(weight),
 
-        effects: effects.split(',').map((s) => s.trim()).filter(Boolean),
-        aroma: aroma.split(',').map((s) => s.trim()).filter(Boolean),
-        flavors: flavors.split(',').map((s) => s.trim()).filter(Boolean),
-
-        rating: toNum(rating),
-        notes: notes.trim() || undefined,
-      } as CreateEntryInput;
+      try {
+        setSubmitting(true);
+        await createEntry(uid, payload);
+        router.push('/tracker');
+      } catch (e: any) {
+        setErr(e?.message || 'Failed to save entry.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
     }
+
+    // ---- Smokeable payload ----
+    payload = {
+      time: timeMs,
+      method,
+      strainName: strainName.trim(),
+      strainType,
+      brand: brand.trim() || undefined,
+      lineage: lineage.trim() || undefined,
+      thcPercent: toNum(thcPercent),
+      thcaPercent: toNum(thcaPercent),
+      weight: toNum(weight),
+
+      effects: effects.split(',').map((s) => s.trim()).filter(Boolean),
+      aroma: aroma.split(',').map((s) => s.trim()).filter(Boolean),
+      flavors: flavors.split(',').map((s) => s.trim()).filter(Boolean),
+
+      rating: toNum(rating),
+      notes: notes.trim() || undefined,
+    } as CreateEntryInput;
 
     try {
       setSubmitting(true);
-      await createEntry(uid, payload);
+      const w = payload.weight ?? 0;
+      const name = payload.strainName?.trim();
+      let usedDeduct = false;
+
+      if (name && w && w > 0) {
+        const purchaseId = await findLatestEligiblePurchaseId(uid, name);
+        if (purchaseId) {
+          await createEntryWithPurchaseDeduction(uid, purchaseId, payload as any);
+          usedDeduct = true;
+        }
+      }
+
+      if (!usedDeduct) {
+        await createEntry(uid, payload);
+      }
+
       router.push('/tracker');
     } catch (e: any) {
       setErr(e?.message || 'Failed to save entry.');
@@ -258,7 +292,6 @@ export default function AddEntryForm() {
         </div>
       )}
 
-      {/* Smokeable fields */}
       {sessionType === 'smokeable' && (
         <>
           <div className={styles.gridTwo}>
@@ -341,7 +374,6 @@ export default function AddEntryForm() {
             </div>
           </div>
 
-          {/* method + weight */}
           <div className={`${styles.gridTwo} ${styles.section}`}>
             <div>
               <label htmlFor="method">Method of Consumption</label>
@@ -375,7 +407,6 @@ export default function AddEntryForm() {
             </div>
           </div>
 
-          {/* effects, aroma, flavors */}
           <div className={`${styles.stack} ${styles.section}`}>
             <div>
               <label htmlFor="effects">Effects</label>
@@ -409,7 +440,6 @@ export default function AddEntryForm() {
             </div>
           </div>
 
-          {/* rating */}
           <div className={`${styles.gridTwo} ${styles.section}`}>
             <div>
               <label htmlFor="rating">Rating (0–10)</label>
@@ -430,7 +460,6 @@ export default function AddEntryForm() {
         </>
       )}
 
-      {/* Edible fields */}
       {sessionType === 'edible' && (
         <>
           <div className={styles.gridTwo}>
@@ -507,7 +536,6 @@ export default function AddEntryForm() {
         </>
       )}
 
-      {/* Notes (common) */}
       <div className={styles.section}>
         <label htmlFor="notes">Notes</label>
         <textarea

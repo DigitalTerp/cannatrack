@@ -1,0 +1,359 @@
+.card {
+  padding: 1rem 1.25rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 0.75rem;
+}
+.left { min-width: 0; }
+
+.nameLine {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  justify-content: center;
+}
+.name {
+  font-size: 1.1rem;
+  line-height: 1.2;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.brand {
+  color: #4b5563; 
+  font-size: 0.9rem;
+  text-align: center;
+}
+.lineage {
+  color: #6b7280; 
+  font-size: 0.8rem;
+  margin-top: 2px;
+  text-align: center;
+}
+
+.right {
+  text-align: right;
+  white-space: nowrap;
+}
+.stateBadge {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badgeLow {
+  background: #fef3c7; 
+  color: #92400e;      
+}
+.badgeDepleted {
+  background: #9f1239; 
+  color: #f1f1f1;     
+}
+.quantities {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: #111827;
+}
+@media (prefers-color-scheme: dark) {
+  .quantities { color: #e5e7eb; }
+}
+
+/* NEW: Centered info block */
+.infoCenter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* center on both desktop and mobile */
+  gap: 0.6rem 0.7rem;
+  margin-top: 0.6rem;
+  text-align: center;
+}
+
+/* Info items: "Label: [pill]" */
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  /* allow each item to shrink/wrap nicely */
+  max-width: 100%;
+}
+.metaLabel {
+  font-weight: 600;
+  color: #374151; /* gray-700 */
+  font-size: 0.85rem;
+}
+.valuePill {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.22rem 0.7rem;
+  font-size: 0.9rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+
+  /* prevent overflow: allow wrapping inside the pill */
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  line-height: 1.25;
+}
+@media (prefers-color-scheme: dark) {
+  .metaLabel { color: #e5e7eb; }
+  .valuePill {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+  }
+}
+
+/* Progress */
+.progressOuter {
+  height: 8px;
+  width: 100%;
+  border-radius: 9999px;
+  background: #e5e7eb;
+  overflow: hidden;
+  margin-top: 0.6rem;
+}
+.progressInner {
+  height: 100%;
+  /* teal → blue → indigo */
+  background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 45%, #6366f1 100%);
+  transition: width 200ms ease;
+}
+@media (prefers-color-scheme: dark) {
+  .progressInner {
+    background: linear-gradient(90deg, #0891b2 0%, #2563eb 45%, #4f46e5 100%);
+  }
+}
+
+/* Actions */
+.actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  text-align: center;
+}
+.btn {
+  border-radius: 0.75rem;
+  border: 1px solid #047857;
+  padding: 0.45rem 0.9rem;
+  font-size: 1rem;
+  color: #fff;
+  background: #059669;
+}
+.btn:hover { opacity: 0.95; }
+
+/* Ghost/phantom link-style */
+.btnGhost {
+  background: transparent;
+  border-color: transparent;
+  text-decoration: underline;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 1.25rem;
+}
+
+/* Mobile niceties */
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr;
+    align-items: start;
+    text-align: center;
+  }
+  .right {
+    text-align: center;
+  }
+}
+.card {
+  padding: 1rem 1.25rem;
+}
+
+/* Layout similar to DailyLog */
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 0.75rem;
+}
+.left { min-width: 0; }
+
+.nameLine {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  justify-content: center;
+}
+.name {
+  font-size: 1.1rem;
+  line-height: 1.2;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.brand {
+  color: #4b5563; /* gray-600 */
+  font-size: 0.9rem;
+  text-align: center;
+}
+.lineage {
+  color: #6b7280; /* gray-500 */
+  font-size: 0.8rem;
+  margin-top: 2px;
+  text-align: center;
+}
+
+/* Right block */
+.right {
+  text-align: right;
+  white-space: nowrap;
+}
+.stateBadge {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badgeLow {
+  background: #fef3c7; /* amber-100 */
+  color: #92400e;      /* amber-800 */
+}
+.badgeDepleted {
+  background: #ffe4e6; /* rose-100 */
+  color: #9f1239;      /* rose-800 */
+}
+.quantities {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: #111827;
+}
+@media (prefers-color-scheme: dark) {
+  .quantities { color: #e5e7eb; }
+}
+
+/* NEW: Centered info block */
+.infoCenter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* center on both desktop and mobile */
+  gap: 0.6rem 0.7rem;
+  margin-top: 0.6rem;
+  text-align: center;
+}
+
+/* Info items: "Label: [pill]" */
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  /* allow each item to shrink/wrap nicely */
+  max-width: 100%;
+}
+.metaLabel {
+  font-weight: 600;
+  color: #374151; /* gray-700 */
+  font-size: 0.85rem;
+}
+.valuePill {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.22rem 0.7rem;
+  font-size: 0.9rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+
+  /* prevent overflow: allow wrapping inside the pill */
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  line-height: 1.25;
+}
+@media (prefers-color-scheme: dark) {
+  .metaLabel { color: #e5e7eb; }
+  .valuePill {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+  }
+}
+
+/* Progress */
+.progressOuter {
+  height: 8px;
+  width: 100%;
+  border-radius: 9999px;
+  background: #e5e7eb;
+  overflow: hidden;
+  margin-top: 0.6rem;
+}
+.progressInner {
+  height: 100%;
+  /* teal → blue → indigo */
+  background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 45%, #6366f1 100%);
+  transition: width 200ms ease;
+}
+@media (prefers-color-scheme: dark) {
+  .progressInner {
+    background: linear-gradient(90deg, #0891b2 0%, #2563eb 45%, #4f46e5 100%);
+  }
+}
+
+/* Actions */
+.actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  text-align: center;
+}
+.btn {
+  border-radius: 0.75rem;
+  border: 1px solid #047857;
+  padding: 0.45rem 0.9rem;
+  font-size: 1rem;
+  color: #fff;
+  background: linear-gradient(90deg, #064e3b 0%, #052e2b 100%);
+}
+.btn:hover { opacity: 0.95; }
+
+/* Ghost/phantom link-style */
+.btnGhost {
+  background: transparent;
+  border-color: transparent;
+  text-decoration: underline;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 1.25rem;
+  color: #052e2b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btnGhost {
+    color: #fff;       
+  }
+
+/* Mobile niceties */
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr;
+    align-items: start;
+    text-align: center;
+  }
+  .right {
+    text-align: center;
+  }
+}
+}
