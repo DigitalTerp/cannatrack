@@ -11,7 +11,6 @@ import Xicon from '@/components/icons/XIcon';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-/* Friendly fallback if username not set */
 function fallbackNiceName(u: User | null): string {
   const fromProfile = u?.displayName?.trim();
   if (fromProfile) return fromProfile;
@@ -34,7 +33,6 @@ export default function HeaderBar() {
         return;
       }
       try {
-        // Fetch username from Firestore: /users/{uid} -> { username: string }
         const snap = await getDoc(doc(db, 'users', u.uid));
         const name = snap.exists() ? (snap.data()?.username as string | undefined) : undefined;
         setUsername(name && name.trim() ? name.trim() : null);

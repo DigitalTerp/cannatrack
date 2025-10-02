@@ -27,7 +27,6 @@ function formatMg(n: number) {
   return Number.isInteger(n) ? `${n} mg` : `${n.toFixed(1)} mg`;
 }
 function formatPct(n: number) {
-  // show up to 1 decimal, but trim trailing .0
   const v = Math.round(n * 10) / 10;
   return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}%`;
 }

@@ -106,11 +106,10 @@
   max-width: 320px;
 }
 
-/* ---------- Mobile: equal-size toggles & tidy actions ---------- */
 @media (max-width: 640px) {
   .toggleRow {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* equal columns for Smokeable/Edible */
+    grid-template-columns: 1fr 1fr; 
     align-items: stretch;
     gap: var(--space-2);
   }

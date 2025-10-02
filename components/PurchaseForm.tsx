@@ -8,7 +8,6 @@ import { createPurchase, listStrains } from '@/lib/firestore';
 import type { Strain, StrainType } from '@/lib/types';
 import styles from './FormEntry.module.css';
 
-/* ---------- helpers ---------- */
 const TYPE_OPTIONS: StrainType[] = ['Indica', 'Hybrid', 'Sativa'];
 
 function niceName() {
@@ -39,7 +38,6 @@ function buildWeightOptions() {
     out.push({ label, grams });
   }
 
-  // After 1 oz: quarter-oz (7g) increments
   for (let g = G_PER_OZ + 7; g <= maxG + 1e-9; g += 7) {
     const grams = +g.toFixed(2);
     const oz = +(grams / G_PER_OZ).toFixed(2);
@@ -51,8 +49,6 @@ function buildWeightOptions() {
 
 export default function PurchaseForm() {
   const router = useRouter();
-
-  /* ---------- Auth / User (mirrors AddEntryForm) ---------- */
   const [ready, setReady] = useState(false);
   const [uid, setUid] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string>('there');
@@ -70,7 +66,6 @@ export default function PurchaseForm() {
     return () => unsub();
   }, [router]);
 
-  /* ---------- Cultivar picker (prefill) ---------- */
   const [strains, setStrains] = useState<Strain[]>([]);
   const [selectedStrainId, setSelectedStrainId] = useState<string>('');
 
@@ -80,7 +75,6 @@ export default function PurchaseForm() {
       const list = await listStrains(uid);
       setStrains(list);
     } catch {
-      // ignore
     }
   }, [uid]);
 
@@ -99,7 +93,6 @@ export default function PurchaseForm() {
     setLineage(s.lineage || '');
   }
 
-  /* ---------- Form state (styled like AddEntryForm) ---------- */
   const [strainName, setStrainName] = useState('');
   const [strainType, setStrainType] = useState<StrainType>('Hybrid');
   const [brand, setBrand] = useState('');
@@ -143,7 +136,6 @@ export default function PurchaseForm() {
         grams,
         dollars: dollars ? parseFloat(dollars) : undefined,
         purchaseDateISO,
-        // batchId removed
       });
 
       router.push('/purchases');
@@ -163,7 +155,6 @@ export default function PurchaseForm() {
         Flower only · ⅛ increments up to 1 oz, then ¼-oz (7g) increments to 10 oz.
       </p>
 
-      {/* Previous Cultivars (optional) */}
       {strains.length > 0 && (
         <div className={styles.field}>
           <label htmlFor="prev-cultivar">Previous Cultivars (optional)</label>
@@ -187,7 +178,6 @@ export default function PurchaseForm() {
         </div>
       )}
 
-      {/* Core identity */}
       <div className={styles.gridTwo}>
         <div>
           <label htmlFor="strainName">Cultivar Name</label>
@@ -268,7 +258,6 @@ export default function PurchaseForm() {
         </div>
       </div>
 
-      {/* Date */}
       <div className={`${styles.gridTwo} ${styles.section}`}>
         <div>
           <label htmlFor="purchaseDate">Purchase Date</label>
@@ -283,7 +272,6 @@ export default function PurchaseForm() {
         <div />
       </div>
 
-      {/* Weight / Cost */}
       <div className={`${styles.gridTwo} ${styles.section}`}>
         <div>
           <label htmlFor="gramsPreset">Weight</label>

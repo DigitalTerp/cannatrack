@@ -349,7 +349,7 @@ export default function HistoryPage() {
                 {edible ? (
                   <>
                     <div className={typeStyles.kvRow}>
-                      <span className={typeStyles.kvLabel}>Method</span>
+                      <span className={typeStyles.kvLabel}>Method:</span>
                       <span className={typeStyles.kvValue}>{e.method}</span>
                     </div>
                     {edibleType && (
@@ -404,7 +404,7 @@ export default function HistoryPage() {
                   Edit
                 </button>
                 <button
-                  className={`btn ${typeStyles.deleteBtn}`}
+                  className={styles.deleteBtn}
                   onClick={() => handleDelete(e.id)}
                   aria-label="Delete entry"
                 >

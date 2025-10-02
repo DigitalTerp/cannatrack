@@ -99,32 +99,62 @@
   }
 }
 
-/* Footer actions (only Remove button now) */
 .footer {
   margin-top: 0.6rem;
   display: flex;
   align-items: center;
-  justify-content: center;   /* center the single action */
+  justify-content: center;  
 }
 
-/* Ghosty danger button */
+
 .deleteBtn {
-  background: #b91c1c;
-  border: 1px solid transparent;
-  color: #fff; /* red-700 */
-  font-size: .90rem;
-  border-radius: 0.5rem;
-  text-decoration: underline;
+  --accent: #ff3355;
+  --accent-2: #ff7b95;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0.9rem 1.25rem;
+  min-width: 200px;
+
+  border-radius: .75rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 75%, #ffffff);
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  color: #fff;
+
+  font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
+
 }
+
+.deleteBtn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,0.55), rgba(255,0,64,0) 60%);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+
 .deleteBtn:hover {
-  background: #fee2e2; /* red-100 */
+  transform: translateY(-1px) scale(1.015);
+  box-shadow: 0 14px 28px rgba(255, 0, 64, 0.35);
 }
-@media (prefers-color-scheme: dark) {
-  .deleteBtn:hover {
-    background: #7f1d1d;
-    color: #fee2e2;
-  }
+
+.deleteBtn:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.deleteBtn:disabled,
+.deleteBtn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.25);
 }
 
 @media (max-width: 640px) {
@@ -145,11 +175,11 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.4rem 0.9rem;        /* larger than meta chips */
+  padding: 0.4rem 0.9rem;        
   border-radius: 9999px;
-  font-size: 0.95rem;            /* a touch bigger */
-  font-weight: 700;              /* make it pop */
-  border: 1px solid transparent; /* set per-variant */
+  font-size: 0.95rem;            
+  font-weight: 700;              
+  border: 1px solid transparent; 
   box-shadow: 0 1px 0 rgba(0,0,0,0.03);
 }
 
@@ -157,27 +187,27 @@
 .pillValue { white-space: nowrap; }
 
 .pillCount {
-  background: linear-gradient(90deg, #eef2ff 0%, #e0e7ff 100%); /* indigo-50 → indigo-100 */
-  border-color: #c7d2fe; /* indigo-200 */
-  color: #1e3a8a;        /* indigo-900 */
+  background: linear-gradient(90deg, #eef2ff 0%, #e0e7ff 100%); 
+  border-color: #c7d2fe; 
+  color: #1e3a8a;        
 }
 
 .pillSpent {
   background: linear-gradient(90deg, #ecfdf5 0%, #d1fae5 100%); 
-  border-color: #a7f3d0; /* emerald-200 */
-  color: #065f46;        /* emerald-800 */
+  border-color: #a7f3d0;
+  color: #065f46;        
 }
 
 @media (prefers-color-scheme: dark) {
   .pillCount {
-    background: linear-gradient(90deg, #1e293b 0%, #111827 100%); /* slate-ish */
-    border-color: #334155; /* slate-700 */
-    color: #c7d2fe;        /* indigo-200 text */
+    background: linear-gradient(90deg, #1e293b 0%, #111827 100%);
+    border-color: #334155;
+    color: #c7d2fe;        
   }
   .pillSpent {
-    background: linear-gradient(90deg, #064e3b 0%, #052e2b 100%); /* deep emerald tones */
+    background: linear-gradient(90deg, #064e3b 0%, #052e2b 100%);
     border-color: #065f46;
-    color: #fff;        /* emerald-200 text */
+    color: #fff; 
   }
 }
 
@@ -221,11 +251,10 @@
   color: #065f46;
 }
 
-/* NEW: Quantity pill (sky → violet) */
 .pillQty {
-  background: linear-gradient(90deg, #e0f2fe 0%, #e9d5ff 100%); /* sky-100 → violet-200 */
-  border-color: #bae6fd;  /* sky-200 */
-  color: #0f172a;         /* slate-900 for contrast */
+  background: linear-gradient(90deg, #e0f2fe 0%, #e9d5ff 100%); 
+  border-color: #bae6fd;  
+  color: #0f172a;        
 }
 
 @media (prefers-color-scheme: dark) {

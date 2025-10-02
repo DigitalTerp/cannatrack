@@ -123,7 +123,6 @@
 }
 .progressInner {
   height: 100%;
-  /* teal → blue → indigo */
   background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 45%, #6366f1 100%);
   transition: width 200ms ease;
 }
@@ -133,7 +132,6 @@
   }
 }
 
-/* Actions */
 .actions {
   margin-top: 1rem;
   display: flex;
@@ -152,7 +150,6 @@
 }
 .btn:hover { opacity: 0.95; }
 
-/* Ghost/phantom link-style */
 .btnGhost {
   background: transparent;
   border-color: transparent;
@@ -162,7 +159,6 @@
   margin-left: 1.25rem;
 }
 
-/* Mobile niceties */
 @media (max-width: 640px) {
   .row {
     grid-template-columns: 1fr;
@@ -177,7 +173,6 @@
   padding: 1rem 1.25rem;
 }
 
-/* Layout similar to DailyLog */
 .row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -201,18 +196,17 @@
 }
 
 .brand {
-  color: #4b5563; /* gray-600 */
+  color: #4b5563; 
   font-size: 0.9rem;
   text-align: center;
 }
 .lineage {
-  color: #6b7280; /* gray-500 */
+  color: #6b7280; 
   font-size: 0.8rem;
   margin-top: 2px;
   text-align: center;
 }
 
-/* Right block */
 .right {
   text-align: right;
   white-space: nowrap;
@@ -225,12 +219,12 @@
   font-weight: 600;
 }
 .badgeLow {
-  background: #fef3c7; /* amber-100 */
-  color: #92400e;      /* amber-800 */
+  background: #fef3c7; 
+  color: #92400e;      
 }
 .badgeDepleted {
-  background: #ffe4e6; /* rose-100 */
-  color: #9f1239;      /* rose-800 */
+  background: #ffe4e6; 
+  color: #9f1239;      
 }
 .quantities {
   margin-top: 0.35rem;
@@ -241,27 +235,24 @@
   .quantities { color: #e5e7eb; }
 }
 
-/* NEW: Centered info block */
 .infoCenter {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center; /* center on both desktop and mobile */
+  justify-content: center; 
   gap: 0.6rem 0.7rem;
   margin-top: 0.6rem;
   text-align: center;
 }
 
-/* Info items: "Label: [pill]" */
 .metaItem {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  /* allow each item to shrink/wrap nicely */
   max-width: 100%;
 }
 .metaLabel {
   font-weight: 600;
-  color: #374151; /* gray-700 */
+  color: #374151; 
   font-size: 0.85rem;
 }
 .valuePill {
@@ -272,8 +263,6 @@
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
   color: #111827;
-
-  /* prevent overflow: allow wrapping inside the pill */
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -289,7 +278,6 @@
   }
 }
 
-/* Progress */
 .progressOuter {
   height: 8px;
   width: 100%;
@@ -300,7 +288,6 @@
 }
 .progressInner {
   height: 100%;
-  /* teal → blue → indigo */
   background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 45%, #6366f1 100%);
   transition: width 200ms ease;
 }
@@ -310,7 +297,6 @@
   }
 }
 
-/* Actions */
 .actions {
   margin-top: 1rem;
   display: flex;
@@ -329,7 +315,7 @@
 }
 .btn:hover { opacity: 0.95; }
 
-/* Ghost/phantom link-style */
+
 .btnGhost {
   background: transparent;
   border-color: transparent;
@@ -345,7 +331,6 @@
     color: #fff;       
   }
 
-/* Mobile niceties */
 @media (max-width: 640px) {
   .row {
     grid-template-columns: 1fr;

@@ -34,19 +34,17 @@ const toNum = (s: string) => {
 };
 
 type Props = {
-  entry?: Entry | null;     // allow undefined/null on first paint
-  strain?: Strain | null;   // smokeable auxiliary info only
+  entry?: Entry | null;  
+  strain?: Strain | null;  
 };
 
 export default function EditEntryForm({ entry, strain }: Props) {
   const router = useRouter();
 
-  // Session type toggle
   const [sessionType, setSessionType] = useState<'smokeable' | 'edible'>(
     looksEdible(entry) ? 'edible' : 'smokeable'
   );
 
-  // ---- Common ----
   const [timeIso, setTimeIso] = useState<string>(() => {
     const d = new Date(Date.now());
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -56,7 +54,6 @@ export default function EditEntryForm({ entry, strain }: Props) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // ---- Smokeable fields ----
   const [strainName, setStrainName] = useState<string>('');
   const [strainType, setStrainType] = useState<StrainType>('Hybrid');
   const [method, setMethod] = useState<Method>('Pre-Roll');
@@ -67,14 +64,12 @@ export default function EditEntryForm({ entry, strain }: Props) {
   const [aromaText, setAromaText] = useState<string>('');
   const [flavorsText, setFlavorsText] = useState<string>('');
 
-  // Cultivar metadata (smokeables)
   const [cultivator, setCultivator] = useState<string>('');
   const [lineage, setLineage] = useState<string>('');
   const [thc, setThc] = useState<string>('');
   const [thca, setThca] = useState<string>('');
   const [cbd, setCbd] = useState<string>('');
 
-  // ---- Edible-only fields ----
   const [edibleName, setEdibleName] = useState<string>('');
   const [edibleType, setEdibleType] = useState<EdibleType>('Gummy');
   const [thcMgText, setThcMgText] = useState<string>(''); // mg
@@ -158,22 +153,15 @@ export default function EditEntryForm({ entry, strain }: Props) {
       const patchTime = new Date(timeIso).getTime();
 
       if (sessionType === 'edible') {
-        //  No cultivar upsert for edibles
         const patch: any = {
           time: patchTime,
           method: 'Edible',
-
-          // keep display name consistent across app
           strainName: edibleName.trim(),
           strainType,
           brand: cultivator.trim() || undefined,
-
-          // edible specifics (category + mg)
           edibleName: edibleName.trim(),
           edibleKind: edibleType,
           edibleMg: toNum(thcMgText),
-
-          // ensure smokeable-specific fields aren’t set
           strainId: undefined,
           weight: undefined,
           lineage: undefined,
@@ -190,7 +178,6 @@ export default function EditEntryForm({ entry, strain }: Props) {
 
         await updateEntry(uid, entry.id, patch);
       } else {
-        // Smokeable: keep existing behavior (upsert cultivar metadata)
         const newStrainId = await upsertStrainByName(uid, {
           name: strainName.trim(),
           type: strainType,

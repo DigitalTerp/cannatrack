@@ -1,0 +1,272 @@
+.page {
+  max-width: 50rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.backRow { display: flex; justify-content: flex-start; }
+.backLink { text-decoration: none; font-weight: 600; opacity: .85; }
+.backLink:hover { opacity: 1; }
+
+.infoHead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;                
+  margin-bottom: 0.25rem;
+}
+.title {
+  margin: 0.1rem 0 0.2rem;
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+.typeChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.38rem 0.7rem;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.infoCard {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1rem;
+}
+
+.h2, .h3 { text-align: center; }
+
+.sectionHeader {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;    
+}
+.sectionHeader .h2 { grid-column: 2; justify-self: center; }
+
+.inlineEdit { grid-column: 3; justify-self: end; }
+
+.aboutList {
+  list-style: none;
+  margin: 0.1rem auto 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: start;
+  justify-items: center;
+}
+
+@media (min-width: 900px) {
+  .aboutList {
+    grid-template-columns: 1fr;
+    max-width: 42rem;
+    row-gap: 0.35rem;
+  }
+  
+}
+
+.aboutItem {
+  text-align: center;
+  padding: 0.1rem 0.5rem;
+}
+.kvLabel {
+  display: block;        
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.04rem;
+  opacity: 0.62;
+  margin-bottom: 0.25rem;
+  text-transform: capitalize;
+  position: relative;
+}
+.kvText {
+  display: block;
+  font-weight: 500;
+  font-size: 0.95rem;
+  word-break: break-word;
+}
+
+/* Sections */
+.section { margin: 1.4rem 0 0.5rem; }
+.h3 {
+  margin: 0.6rem 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+/* Shared stat/badge presentation outside the About block */
+.statRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.8rem;
+  justify-content: center;
+  margin-top: 0.2rem;
+  margin-bottom: 1rem;        
+}
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.statLabel {
+  font-weight: 700;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+.statBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: #f8fafc;
+  font-weight: 600;
+  line-height: 1;
+}
+@media (prefers-color-scheme: dark) {
+  .statBadge {
+    background: #0b1220;
+    border-color: rgba(255,255,255,0.12);
+  }
+}
+
+.cards {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  align-items: stretch;
+}
+
+.purchaseCard {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+}
+.cardRowTight { display: flex; justify-content: center; }
+.statePill {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.pillActive { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+.pillDone   { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
+
+.statLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.35rem;
+}
+
+.pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+/* Make the potency pair drop to a new line on smaller screens */
+@media (max-width: 720px) {
+  .pairBreakSm { flex-basis: 100%; justify-content: center; }
+}
+
+.progressOuter {
+  width: 100%;
+  height: 6px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.4rem;
+}
+.progressInner {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #10b981);
+  width: 0%;
+}
+
+.entryCard { padding: 0.9rem 1rem; }
+
+.brandCard { display: grid; gap: 0.6rem; padding: 0.9rem 1rem; }
+.brandHeader { display: flex; justify-content: center; }
+.brandName { font-weight: 700; }
+
+@media (max-width: 640px) {
+  .title { font-size: 2rem; }
+  .cards { grid-template-columns: 1fr; }
+}
+
+/* ===== Danger Zone (bottom action) ===== */
+.dangerZone {
+  margin: 2rem 0 3rem;
+  display: grid;
+  place-items: center;
+  gap: 0.5rem;
+}
+
+.deleteHint {
+  font-size: 12px;
+  opacity: 0.7;
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.deleteBtn {
+  --accent: #ff3355;
+  --accent-2: #ff7b95;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0.9rem 1.25rem;
+  min-width: 200px;
+
+  border-radius: .75rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 75%, #ffffff);
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+
+}
+
+.deleteBtn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,0.55), rgba(255,0,64,0) 60%);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.deleteBtn:hover {
+  transform: translateY(-1px) scale(1.015);
+  box-shadow: 0 14px 28px rgba(255, 0, 64, 0.35);
+}
+
+.deleteBtn:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.deleteBtn:disabled,
+.deleteBtn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+}
+

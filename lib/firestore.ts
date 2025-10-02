@@ -11,6 +11,7 @@ import {
   updateDoc,
   where,
   runTransaction,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Entry, Strain, StrainType } from './types';
@@ -725,17 +726,18 @@ export async function findPurchaseForStrain(
   const nameLower = (strainName || '').trim().toLowerCase();
   if (!nameLower) return undefined;
 
-  const qy = query(
-    purchasesCol(uid),
-    where('strainNameLower', '==', nameLower),
-    where('remainingGrams', '>', 0),
-    orderBy('updatedAt', 'desc'),
-    limit(1)
-  );
+  const qy = query(purchasesCol(uid), where('strainNameLower', '==', nameLower));
   const snap = await getDocs(qy);
   if (snap.empty) return undefined;
-  return { id: snap.docs[0].id };
+
+  const rows = snap.docs
+    .map(d => ({ id: d.id, ...(d.data() as any) }))
+    .filter((p: any) => (p?.remainingGrams ?? 0) > 0)
+    .sort((a: any, b: any) => (b?.updatedAt ?? 0) - (a?.updatedAt ?? 0));
+
+  return rows.length ? { id: rows[0].id } : undefined;
 }
+
 
 export async function createEntryAutoDeduct(
   uid: string,
@@ -814,5 +816,201 @@ export async function finishAndArchivePurchase(
       removedPurchaseId: purchaseId,
     };
   });
+}
+
+export async function listEntriesForStrain(
+  uid: string,
+  strainNameLower: string,
+  displayName?: string
+): Promise<Entry[]> {
+  const entriesRef = entriesCol(uid);
+  const qLower = query(entriesRef, where('strainNameLower', '==', strainNameLower));
+  const qName  = displayName ? query(entriesRef, where('strainName', '==', displayName)) : null;
+  const [snapLower, snapName] = await Promise.all([
+    getDocs(qLower),
+    qName ? getDocs(qName) : Promise.resolve(null as any),
+  ]);
+
+  const map = new Map<string, any>();
+  const add = (snap: any) => {
+    if (!snap) return;
+    for (const d of snap.docs) {
+      const row = { id: d.id, userId: uid, ...(d.data() as any) };
+      if (row?.isPurchaseArchive === true || row?.hiddenFromDaily === true) continue;
+      map.set(d.id, row);
+    }
+  };
+
+  add(snapLower);
+  add(snapName);
+
+  if (map.size === 0) {
+    const recentQ = query(entriesRef, orderBy('time', 'desc'), limit(200));
+    const recentSnap = await getDocs(recentQ);
+
+    const toLower = (s: any) => (typeof s === 'string' ? s : '').trim().toLowerCase();
+
+    for (const d of recentSnap.docs) {
+      const row = { id: d.id, userId: uid, ...(d.data() as any) };
+      if (row?.isPurchaseArchive === true || row?.hiddenFromDaily === true) continue;
+
+      const nmLower =
+        toLower(row.strainNameLower) ||
+        toLower(row.strainName) ||
+        toLower((row as any).strain) ||
+        toLower((row as any).cultivar);
+
+      if (nmLower && nmLower === strainNameLower) {
+        map.set(d.id, row);
+      }
+    }
+  }
+
+  const out = Array.from(map.values()) as Entry[];
+  out.sort((a: any, b: any) => (b?.time ?? 0) - (a?.time ?? 0));
+
+  try {
+    if (out.length) {
+      const batch = writeBatch(db);
+      let touched = 0;
+
+      const toLower = (s: any) => (typeof s === 'string' ? s : '').trim().toLowerCase();
+
+      for (const e of out) {
+        const needsStrainLower =
+          !(e as any).strainNameLower &&
+          typeof (e as any).strainName === 'string' &&
+          (e as any).strainName.trim().length > 0;
+
+        const needsBrandLower =
+          typeof (e as any).brand === 'string' &&
+          (e as any).brand.trim().length > 0 &&
+          typeof (e as any).brandLower !== 'string';
+
+        if (needsStrainLower || needsBrandLower) {
+          const ref = entryRef(uid, e.id as string);
+          const patch: any = {};
+          if (needsStrainLower) patch.strainNameLower = toLower((e as any).strainName) || strainNameLower;
+          if (needsBrandLower) patch.brandLower = toLower((e as any).brand);
+          batch.update(ref, patch);
+          if (++touched >= 400) break; 
+        }
+      }
+
+      if (touched > 0) {
+        await batch.commit();
+      }
+    }
+  } catch {
+  }
+
+  return out;
+}
+
+
+
+export async function listActivePurchasesForStrain(uid: string, strainNameLower: string) {
+  const qy = query(purchasesCol(uid), where('strainNameLower', '==', strainNameLower));
+  const snap = await getDocs(qy);
+
+  const rows = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+
+  return rows
+    .filter((p: any) => p?.status === 'active')
+    .sort((a: any, b: any) => (b?.updatedAt ?? 0) - (a?.updatedAt ?? 0));
+}
+
+export const listCurrentPurchasesForStrain = listActivePurchasesForStrain;
+
+
+export async function listArchivedPurchasesForStrain(uid: string, strainNameLower: string) {
+  const qy = query(entriesCol(uid), where('journalType', '==', 'purchase-archive'));
+  const snap = await getDocs(qy);
+
+  const all = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+
+  const mine = all.filter((e: any) => {
+    const lower = (e?.strainNameLower ?? (e?.strainName || '')).toLowerCase();
+    return lower === strainNameLower;
+  });
+
+  const finishedMs = (e: any) =>
+    (typeof e?.purchaseFinishedAtMs === 'number' && e.purchaseFinishedAtMs) ||
+    (e?.purchaseFinishedDateISO ? Date.parse(e.purchaseFinishedDateISO) : 0) ||
+    (typeof e?.time === 'number' ? e.time : 0);
+
+  return mine.sort((a, b) => finishedMs(b) - finishedMs(a));
+}
+
+
+export async function getCultivatorRollups(uid: string, strainNameLower: string) {
+  const rows = await listEntriesForStrain(uid, strainNameLower);
+  type Row = {
+    brand?: string;
+    brandLower?: string;
+    thcPercent?: number;
+    thcaPercent?: number;
+    rating?: number;
+    weight?: number;
+  };
+
+  const byBrand = new Map<
+    string,
+    {
+      brand: string;
+      sessions: number;
+      grams: number;
+      ratingSum: number;
+      ratingCount: number;
+      thcSum: number;
+      thcCount: number;
+    }
+  >();
+
+  const sumPotency = (a?: number | null, b?: number | null) => {
+    const A = typeof a === 'number' ? a : 0;
+    const B = typeof b === 'number' ? b : 0;
+    const v = Math.round((A + B) * 10) / 10;
+    return Number.isInteger(v) ? Number(v.toFixed(0)) : Number(v.toFixed(1));
+
+  };
+
+  rows.forEach((r: Row) => {
+    const key = r.brandLower || 'unknown';
+    const brand = r.brand || 'Unknown';
+    const g =
+      byBrand.get(key) || {
+        brand,
+        sessions: 0,
+        grams: 0,
+        ratingSum: 0,
+        ratingCount: 0,
+        thcSum: 0,
+        thcCount: 0,
+      };
+
+    g.sessions += 1;
+    g.grams += typeof r.weight === 'number' ? r.weight : 0;
+
+    if (typeof r.rating === 'number') {
+      g.ratingSum += r.rating;
+      g.ratingCount += 1;
+    }
+    if (typeof r.thcPercent === 'number' || typeof r.thcaPercent === 'number') {
+      g.thcSum += sumPotency(r.thcPercent, r.thcaPercent);
+      g.thcCount += 1;
+    }
+    byBrand.set(key, g);
+  });
+
+  return Array.from(byBrand.values())
+    .map((g) => ({
+      brand: g.brand,
+      sessions: g.sessions,
+      grams: Number(g.grams.toFixed(2)),
+      avgRating: g.ratingCount ? Number((g.ratingSum / g.ratingCount).toFixed(2)) : null,
+      avgPotency: g.thcCount ? Number((g.thcSum / g.thcCount).toFixed(1)) : null,
+    }))
+    .sort((a, b) => (b.sessions - a.sessions) || (b.grams - a.grams));
 }
 

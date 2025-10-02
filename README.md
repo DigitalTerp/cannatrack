@@ -96,6 +96,28 @@ Training complete. First lightsaber constructed. Time to explore the galaxy (of 
 
 ## *** Updates
 
+## Cultivar and Product Page Update — 2025-10-02
+
+### Cultivar Page Overhaul
+- Each cultivar now has a **dedicated product page**:
+  - View detailed information about the cultivar (lineage, flavors, aromas, effects, notes).
+  - Track **past sessions** with consumption data (method, weight, potency, rating, date).
+  - See **statistics** such as average rating, total consumption, and session counts.
+  - Access **purchase history**, separated into **active** and **archived purchases** with spend tracking.
+  - View **cultivator breakdowns**, showing which brands you’ve tried for that cultivar, with aggregated ratings and potency stats.
+
+### Main Cultivar Library
+- Gave the **main Cultivars list** a cleaner, more consistent look:
+  - Dedicated columns for **Cultivar | Type | Lineage | Added | Actions** on desktop.
+  - Tighter, more compact rows for mobile.
+  - Type badge now shows **next to the cultivar name on mobile** for readability.
+
+### Codebase Adjustments
+- Adjusted `firestore.ts` queries to support fetching session data, purchase history, and legacy name lookups.
+- Cleaned up old helpers and improved code consistency.
+- Minor **visual refinements** for spacing, typography, and badge styling.
+
+
 ## Purchase Tracker Update — 2025-09-26
 
 We gave purchases the glow-up they deserve 🎉  
