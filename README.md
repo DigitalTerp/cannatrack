@@ -75,12 +75,9 @@ Getting Started (local)
 
 - **User Settings** 
 
-- **My Purchase Tracker** A way of adding your Purchase and giving estimated levels of what remains for that cultivar and shows indications when it may need to be refilled for either same or alternative cultivars
+- **My Purchase Tracker** A way of adding your Purchase and giving estimated levels of what remains for that cultivar and shows indications when it may need to be refilled for either same or alternative cultivars (v.01)
 
 - **Optional Photos/Gallery** Per session 
-
-
-
 
 I’ll keep adding features and sanding off rough edges. Ideas welcome—open an issue.
 
@@ -95,6 +92,11 @@ As a judge and a tinkerer, I wanted a tracker that adapts to me—fast to log, e
 Training complete. First lightsaber constructed. Time to explore the galaxy (of cultivars)—one personalized log at a time.
 
 ## *** Updates
+
+## 2025-10-06 — Edibles: mg display fix & quicker entry
+
+- Fixed an issue where edible **mg** amounts were not showing in **History** and **Daily** views.
+- Added **Recall Previous Edibles**: auto-suggests past edible items so you can quickly pre-fill name/dose from earlier sessions.
 
 ## Cultivar and Product Page Update — 2025-10-02
 
@@ -120,12 +122,7 @@ Training complete. First lightsaber constructed. Time to explore the galaxy (of 
 
 ## Purchase Tracker Update — 2025-09-26
 
-We gave purchases the glow-up they deserve 🎉  
-Here’s a quick, human-friendly tour of what changed and why it’s nice to use.
-
----
-
-### The big idea
+### The Big Idea
 You can now track **what you bought**, **how much you used**, **when you finished it**, and **what it cost**—all in one clean flow. When you log sessions, your active purchase **counts down automatically**. When you’re done, you can **Finish & Archive** with one click.
 
 ---
