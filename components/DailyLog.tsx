@@ -31,6 +31,34 @@ function formatPct(n: number) {
   return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}%`;
 }
 
+const asNumber = (v: any): number | undefined => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v); 
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+};
+
+const getEdibleMg = (e: any): number | undefined =>
+  asNumber(e?.edibleMg) ??
+  asNumber(e?.mg) ??
+  asNumber(e?.dose) ??
+  asNumber(e?.thcMg);
+
+const isEdibleEntry = (e: any): boolean => {
+  const method = String(e?.method || '').trim().toLowerCase();
+  return (
+    method === 'edible' ||
+    e?.isEdibleSession === true ||
+    e?.isEdible === true ||
+    e?.edibleName != null ||
+    e?.edibleType != null ||
+    e?.edibleKind != null ||
+    getEdibleMg(e) != null
+  );
+};
+
 export default function DailyLog() {
   const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -87,39 +115,42 @@ export default function DailyLog() {
   return (
     <div className={styles.list}>
       {entries.map((e) => {
-        const isEdible = Boolean((e as any).isEdible) || e.method === 'Edible';
-        const title = isEdible ? (e as any).edibleName || 'Untitled Edible' : (e.strainName || 'Untitled');
+        const edible = isEdibleEntry(e);
+        const title = edible
+          ? (e as any).edibleName || 'Untitled Edible'
+          : (e.strainName || 'Untitled');
 
-        // total THC% for smokeables = THC + THCA (if either present)
-        const thc = isFiniteNum(e.thcPercent) ? e.thcPercent : 0;
-        const thca = isFiniteNum(e.thcaPercent) ? e.thcaPercent : 0;
+        const thc = isFiniteNum((e as any).thcPercent) ? (e as any).thcPercent : 0;
+        const thca = isFiniteNum((e as any).thcaPercent) ? (e as any).thcaPercent : 0;
         const totalThc = thc + thca;
         const showTotalThc = totalThc > 0;
+
+        const edibleType = (e as any).edibleType ?? (e as any).edibleKind;
+        const doseMg = getEdibleMg(e);
 
         return (
           <div className={`card ${styles.item}`} key={e.id}>
             <div className={styles.row}>
               <div>
-                {/* Title + Type badge */}
                 <div className={styles.nameLine}>
                   <strong className={styles.name}>{title}</strong>
                   <span className={`badge ${badgeClass(e.strainType)}`}>{e.strainType}</span>
                 </div>
 
                 <div className={styles.meta}>
-                  {isEdible ? (
+                  {edible ? (
                     <>
                       <span className={styles.metaChip}>
                         <span className={styles.metaChipLabel}>Method:</span> {e.method}
                       </span>
-                      {(e as any).edibleType && (
+                      {edibleType && (
                         <span className={styles.metaChip}>
-                          <span className={styles.metaChipLabel}>Type:</span> {(e as any).edibleType}
+                          <span className={styles.metaChipLabel}>Type:</span> {edibleType}
                         </span>
                       )}
-                      {isFiniteNum((e as any).thcMg) && (
+                      {doseMg != null && Number.isFinite(doseMg) && (
                         <span className={styles.metaChip}>
-                          <span className={styles.metaChipLabel}>Dose:</span> {formatMg((e as any).thcMg)}
+                          <span className={styles.metaChipLabel}>THC:</span> {formatMg(doseMg)}
                         </span>
                       )}
                       <span className={styles.metaChip}>
@@ -138,7 +169,7 @@ export default function DailyLog() {
                       )}
                       {showTotalThc && (
                         <span className={styles.metaChip}>
-                          <span className={styles.metaChipLabel}> THC:</span> {formatPct(totalThc)}
+                          <span className={styles.metaChipLabel}>THC:</span> {formatPct(totalThc)}
                         </span>
                       )}
                       <span className={styles.metaChip}>

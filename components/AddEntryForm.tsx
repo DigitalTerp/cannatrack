@@ -10,7 +10,6 @@ import styles from './FormEntry.module.css';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-/* ---------- datetime-local helpers ---------- */
 function toDatetimeLocal(ms: number): string {
   const d = new Date(ms);
   if (isNaN(d.getTime())) return '';
@@ -62,6 +61,54 @@ async function findLatestEligiblePurchaseId(uid: string, strainName: string): Pr
   }
 }
 
+type PastEdible = {
+  key: string;
+  lastUsed: number;
+  edibleName: string;
+  edibleType?: string;
+  mg?: number;
+  strainType: StrainType;
+  brand?: string;
+};
+
+const asNumber = (v: any): number | undefined => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+};
+const getEdibleMg = (e: any): number | undefined =>
+  asNumber(e?.edibleMg) ?? asNumber(e?.thcMg) ?? asNumber(e?.mg) ?? asNumber(e?.dose);
+
+async function loadPastEdibles(uid: string): Promise<PastEdible[]> {
+  const base = collection(db, 'users', uid, 'entries');
+  const [snapA, snapB] = await Promise.all([
+    getDocs(query(base, where('method', '==', 'Edible'))),
+    getDocs(query(base, where('isEdibleSession', '==', true))),
+  ]);
+  const rows = [...snapA.docs, ...snapB.docs].map((d) => ({ id: d.id, ...(d.data() as any) }));
+
+  const map = new Map<string, PastEdible>();
+  for (const r of rows) {
+    const name = (r.edibleName || r.strainName || '').trim();
+    if (!name) continue;
+    const mg = getEdibleMg(r);
+    const eType = (r.edibleType || r.edibleKind || '').trim() || undefined;
+    const sType = (r.strainType as StrainType) || 'Hybrid';
+    const brand = (r.brand || '').trim() || undefined;
+    const lastUsed = Number(r.time) || 0;
+
+    const key = `${name}|${eType ?? ''}|${mg ?? ''}|${sType}|${brand ?? ''}`;
+    const current = map.get(key);
+    if (!current || lastUsed > current.lastUsed) {
+      map.set(key, { key, lastUsed, edibleName: name, edibleType: eType, mg, strainType: sType, brand });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.lastUsed - a.lastUsed);
+}
+
 export default function AddEntryForm() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -83,19 +130,26 @@ export default function AddEntryForm() {
 
   const [strains, setStrains] = useState<Strain[]>([]);
   const [selectedStrainId, setSelectedStrainId] = useState<string>('');
-
   const loadStrains = useCallback(async () => {
     if (!uid) return;
     try {
       const list = await listStrains(uid);
       setStrains(list);
-    } catch {
-    }
+    } catch {}
   }, [uid]);
+  useEffect(() => { loadStrains(); }, [loadStrains]);
 
+  const [pastEdibles, setPastEdibles] = useState<PastEdible[]>([]);
+  const [selectedEdibleKey, setSelectedEdibleKey] = useState<string>('');
   useEffect(() => {
-    loadStrains();
-  }, [loadStrains]);
+    (async () => {
+      if (!uid) return;
+      try {
+        const list = await loadPastEdibles(uid);
+        setPastEdibles(list);
+      } catch {}
+    })();
+  }, [uid]);
 
   const [sessionType, setSessionType] = useState<'smokeable' | 'edible'>('smokeable');
   const [timeLocal, setTimeLocal] = useState<string>(() => toDatetimeLocal(Date.now()));
@@ -137,6 +191,20 @@ export default function AddEntryForm() {
     );
   }
 
+  function handlePickEdible(key: string) {
+    setSelectedEdibleKey(key);
+    if (!key) return;
+    const found = pastEdibles.find((p) => p.key === key);
+    if (!found) return;
+
+    setEdibleName(found.edibleName || '');
+    setBrand(found.brand || '');
+    const typed = EDIBLE_TYPES.includes((found.edibleType as any)) ? (found.edibleType as EdibleType) : 'Gummy';
+    setEdibleType(typed);
+    setStrainType(found.strainType || 'Hybrid');
+    setThcMg(found.mg != null ? String(found.mg) : '');
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
@@ -163,6 +231,7 @@ export default function AddEntryForm() {
         edibleName: edibleName.trim(),
         edibleType,
         edibleMg: toNum(thcMg),
+
         weight: undefined,
         lineage: undefined,
         thcPercent: undefined,
@@ -187,7 +256,6 @@ export default function AddEntryForm() {
       return;
     }
 
-    // ---- Smokeable payload ----
     payload = {
       time: timeMs,
       method,
@@ -281,13 +349,36 @@ export default function AddEntryForm() {
             <option value="">— New Cultivar —</option>
             {strains.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name}
-                {s.brand ? ` : ${s.brand}` : ''} ({s.type})
+                {s.name}{s.brand ? ` : ${s.brand}` : ''} ({s.type})
               </option>
             ))}
           </select>
           <div className={styles.help}>
             Selecting one just pre-fills the fields. Each session is still saved separately.
+          </div>
+        </div>
+      )}
+
+      {sessionType === 'edible' && pastEdibles.length > 0 && (
+        <div className={styles.field}>
+          <label htmlFor="prev-edible">Previous Edibles (optional)</label>
+          <select
+            id="prev-edible"
+            className="input"
+            value={selectedEdibleKey}
+            onChange={(e) => handlePickEdible(e.target.value)}
+          >
+            <option value="">— New Edible —</option>
+            {pastEdibles.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.edibleName}
+                {p.brand ? ` : ${p.brand}` : ''} •
+                {p.mg != null ? ` ${p.mg} mg` : ''}{p.edibleType ? ` (${p.edibleType})` : ''} — {p.strainType}
+              </option>
+            ))}
+          </select>
+          <div className={styles.help}>
+            Selecting one pre-fills the edible fields. You can still tweak anything before saving.
           </div>
         </div>
       )}
@@ -316,9 +407,7 @@ export default function AddEntryForm() {
                 onChange={(e) => setStrainType(e.target.value as StrainType)}
               >
                 {TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
@@ -385,9 +474,7 @@ export default function AddEntryForm() {
                 required
               >
                 {METHOD_OPTIONS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
+                  <option key={m} value={m}>{m}</option>
                 ))}
               </select>
             </div>
@@ -484,9 +571,7 @@ export default function AddEntryForm() {
                 onChange={(e) => setStrainType(e.target.value as StrainType)}
               >
                 {TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
@@ -511,9 +596,7 @@ export default function AddEntryForm() {
                 onChange={(e) => setEdibleType(e.target.value as EdibleType)}
               >
                 {EDIBLE_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>

@@ -37,6 +37,29 @@ function niceName() {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
+const asNumber = (v: any): number | undefined => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v); 
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+};
+
+const isEdible = (e: any): boolean =>
+  String(e?.method || '').trim().toLowerCase() === 'edible' ||
+  e?.isEdibleSession === true ||
+  typeof e?.edibleMg === 'number' ||
+  typeof e?.mg === 'number' ||
+  typeof e?.dose === 'number' ||
+  typeof e?.thcMg === 'number';
+
+const getEdibleMg = (e: any): number | undefined =>
+  asNumber(e?.edibleMg) ??
+  asNumber(e?.mg) ??
+  asNumber(e?.dose) ??
+  asNumber(e?.thcMg);
+
 export default function TrackerPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -49,15 +72,16 @@ export default function TrackerPage() {
     if (!u) return;
 
     const entries: Entry[] = await listEntriesForDay(u.uid, startOfTodayMs());
+
     const grams = entries.reduce(
-      (acc, e) => acc + (typeof e.weight === 'number' ? e.weight : 0),
+      (acc, e: any) => acc + (typeof e.weight === 'number' ? e.weight : 0),
       0
     );
-    
-    const mg = entries.reduce((acc, e) => {
-      if (String(e.method) !== 'Edible') return acc;
-      const dose = (e as any).thcMg;
-      return acc + (typeof dose === 'number' ? dose : 0);
+
+    const mg = entries.reduce((acc, e: any) => {
+      if (!isEdible(e)) return acc;
+      const dose = getEdibleMg(e);
+      return acc + (dose ?? 0);
     }, 0);
 
     setTotalGramsToday(Number(grams.toFixed(2)));
@@ -97,13 +121,14 @@ export default function TrackerPage() {
         <div className={styles.amountRow}>
           <span className={`subtle ${styles.amountLabel}`}>Amount Consumed Today:</span>
           <span className="badge">{totalGramsToday} g</span>
-           {totalMgToday > 0 && (
+        </div>
+
+        {totalMgToday > 0 && (
           <div className={styles.amountRow}>
             <span className={`subtle ${styles.amountLabel}`}>Edibles Consumed Today:</span>
             <span className="badge">{totalMgToday} mg</span>
           </div>
         )}
-        </div>
       </div>
 
       <DailyLog />

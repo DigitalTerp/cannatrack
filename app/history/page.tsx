@@ -5,25 +5,16 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { listEntriesForDay, deleteEntry } from '@/lib/firestore';
-import {
-  collection,
-  onSnapshot,
-  query,
-  where,
-  deleteDoc,
-  doc,
-} from 'firebase/firestore';
+import { collection, onSnapshot, query, where, deleteDoc, doc } from 'firebase/firestore';
 import type { Entry, StrainType } from '@/lib/types';
 import styles from './history.module.css';
 import typeStyles from '../strains/cultivars.module.css';
 
-/* ---------- SHARED HELPERS ---------- */
 function pad(n: number) { return String(n).padStart(2, '0'); }
 function toDateInputValue(ms: number) {
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-
 function dateInputToLocalMs(v: string): number {
   const [y, m, d] = v.split('-').map((s) => parseInt(s, 10));
   const dt = new Date(y, (m || 1) - 1, d || 1);
@@ -36,7 +27,6 @@ function shiftDateStr(v: string, days: number) {
   d.setDate(d.getDate() + days);
   return toDateInputValue(d.getTime());
 }
-
 function shiftMonthStr(v: string, months: number) {
   const ms = dateInputToLocalMs(v);
   const d = new Date(ms);
@@ -69,7 +59,24 @@ function badgeClass(t: StrainType | undefined) {
   if (key === 'sativa') return `${typeStyles.typeBadge} ${typeStyles['type-sativa']}`;
   return `${typeStyles.typeBadge} ${typeStyles['type-hybrid']}`;
 }
-const isEdible = (e: Entry) => String(e.method) === 'Edible';
+
+const isEdible = (e: any): boolean =>
+  String(e?.method || '').toLowerCase() === 'edible' ||
+  e?.isEdibleSession === true ||
+  typeof e?.edibleMg === 'number' ||
+  typeof e?.mg === 'number' ||
+  typeof e?.dose === 'number';
+
+const asNumber = (v: any): number | undefined => {
+  const n = typeof v === 'string' ? Number(v) : v;
+  return Number.isFinite(n) ? n : undefined;
+};
+
+const getEdibleMg = (e: any): number | undefined =>
+  asNumber(e?.edibleMg) ??
+  asNumber(e?.mg) ??
+  asNumber(e?.dose) ??
+  asNumber(e?.thcMg);
 
 type ArchiveEntry = {
   id: string;
@@ -199,20 +206,19 @@ export default function HistoryPage() {
   const totals = useMemo(() => {
     const sessions = entries.length;
     const grams = entries.reduce(
-      (sum, e) => sum + (typeof e.weight === 'number' ? e.weight : 0),
+      (sum, e: any) => sum + (typeof e.weight === 'number' ? e.weight : 0),
       0
     );
-    const mg = entries.reduce((sum, e) => {
+    const mg = entries.reduce((sum, e: any) => {
       if (!isEdible(e)) return sum;
-      const dose = (e as any).thcMg;
-      return sum + (typeof dose === 'number' ? dose : 0);
+      const dose = getEdibleMg(e);
+      return sum + (dose ?? 0);
     }, 0);
     return { sessions, grams: Number(grams.toFixed(2)), mg: Number(mg.toFixed(2)) };
   }, [entries]);
 
   useEffect(() => {
     if (!user) return;
-
     const base = collection(db, 'users', user.uid, 'entries');
     const qArchive = query(base, where('journalType', '==', 'purchase-archive'));
     const qLegacy = query(base, where('hiddenFromDaily', '==', true));
@@ -328,7 +334,7 @@ export default function HistoryPage() {
         {entries.map((e) => {
           const edible = isEdible(e);
           const edibleName = (e as any).edibleName as string | undefined;
-          const doseMg = (e as any).thcMg as number | undefined;
+          const doseMg = getEdibleMg(e);
           const edibleType = (e as any).edibleType as string | undefined;
 
           const entryThc = (e as any).thcPercent as number | undefined;
@@ -349,7 +355,7 @@ export default function HistoryPage() {
                 {edible ? (
                   <>
                     <div className={typeStyles.kvRow}>
-                      <span className={typeStyles.kvLabel}>Method:</span>
+                      <span className={typeStyles.kvLabel}>Method</span>
                       <span className={typeStyles.kvValue}>{e.method}</span>
                     </div>
                     {edibleType && (
@@ -358,7 +364,7 @@ export default function HistoryPage() {
                         <span className={typeStyles.kvValue}>{edibleType}</span>
                       </div>
                     )}
-                    {typeof doseMg === 'number' && (
+                    {doseMg != null && (
                       <div className={typeStyles.kvRow}>
                         <span className={typeStyles.kvLabel}>Dose</span>
                         <span className={typeStyles.kvValue}>{doseMg.toFixed(2)} mg</span>
@@ -378,7 +384,7 @@ export default function HistoryPage() {
                     {typeof e.weight === 'number' && (
                       <div className={typeStyles.kvRow}>
                         <span className={typeStyles.kvLabel}>Weight</span>
-                        <span className={typeStyles.kvValue}>{e.weight.toFixed(2)}g</span>
+                        <span className={typeStyles.kvValue}>{e.weight.toFixed(2)} g</span>
                       </div>
                     )}
                     {potencyCombined && (
