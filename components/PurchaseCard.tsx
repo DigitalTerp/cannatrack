@@ -19,9 +19,11 @@ type Purchase = {
   totalGrams: number;
   remainingGrams: number;
   totalCostCents?: number;
-  purchaseDate?: string; 
+  purchaseDate?: string;
   status?: 'active' | 'depleted';
   updatedAt?: number;
+  wasteGrams?: number;
+  wastePercent?: number;
 };
 
 type Props = {
@@ -41,10 +43,12 @@ function formatWeight(g: number) {
   }
   return `${+g.toFixed(2)} g`;
 }
+
 function centsToDollarString(cents?: number) {
   if (cents == null || Number.isNaN(cents)) return '';
   return (cents / 100).toFixed(2);
 }
+
 function sumPotency(thc?: number | null, thca?: number | null) {
   const a = typeof thc === 'number' ? thc : 0;
   const b = typeof thca === 'number' ? thca : 0;
@@ -78,6 +82,8 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
     return Math.max(0, Math.min(100, (purchase.remainingGrams / purchase.totalGrams) * 100));
   }, [purchase.totalGrams, purchase.remainingGrams]);
 
+  const pctRounded = useMemo(() => Math.round(pct), [pct]);
+
   const isLow = purchase.remainingGrams < 1 || pct < 20;
   const depleted = purchase.remainingGrams <= 0;
 
@@ -90,9 +96,18 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
     typeof purchase.thcPercent === 'number' || typeof purchase.thcaPercent === 'number';
   const totalPotency = hasAnyPotency ? sumPotency(purchase.thcPercent, purchase.thcaPercent) : null;
 
-  async function logArchiveEntry(finishedDateISO: string) {
+  async function logArchiveEntry(
+    finishedDateISO: string,
+    wasteGrams?: number,
+    wastePercent?: number | null
+  ) {
     const title = purchase.strainName || 'Untitled';
     const nowMs = Date.now();
+
+    const roundedWastePercent =
+      typeof wastePercent === 'number'
+        ? Math.round(wastePercent * 100) / 100
+        : undefined;
 
     const entry = cleanUndefined({
       userId: uid,
@@ -123,6 +138,13 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
         purchaseDate: purchase.purchaseDate || null,
       }),
 
+      ...(typeof wasteGrams === 'number' && wasteGrams > 0
+        ? {
+            wasteGrams,
+            wastePercent: roundedWastePercent,
+          }
+        : {}),
+
       notes: undefined,
 
       createdAt: nowMs,
@@ -137,6 +159,9 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
     const pref = doc(db, 'users', uid, 'purchases', purchase.id);
     const finishedDateISO = new Date().toISOString().slice(0, 10);
 
+    let wasteGrams: number | undefined;
+    let wastePercent: number | null | undefined;
+
     try {
       setBusy(true);
 
@@ -144,6 +169,19 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
         const snap = await tx.get(pref);
         if (!snap.exists()) throw new Error('Purchase not found');
         const p = snap.data() as any;
+
+        const total =
+          typeof p.totalGrams === 'number' ? p.totalGrams : purchase.totalGrams ?? 0;
+        const remaining =
+          typeof p.remainingGrams === 'number'
+            ? p.remainingGrams
+            : purchase.remainingGrams ?? 0;
+
+        if (total > 0 && remaining > 0) {
+          wasteGrams = remaining;
+          wastePercent = Math.max(0, Math.min(100, (remaining / total) * 100));
+        }
+
         if ((p.remainingGrams ?? 0) > 0 || p.status !== 'depleted') {
           tx.update(pref, {
             remainingGrams: 0,
@@ -153,7 +191,7 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
         }
       });
 
-      await logArchiveEntry(finishedDateISO);
+      await logArchiveEntry(finishedDateISO, wasteGrams, wastePercent ?? undefined);
       await deleteDoc(pref);
       onChanged?.();
     } catch (err: any) {
@@ -163,6 +201,9 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
     }
   }
 
+  const hasWaste =
+    typeof purchase.wasteGrams === 'number' && purchase.wasteGrams > 0;
+
   return (
     <div className={`card ${styles.card}`}>
       <div className={styles.row}>
@@ -171,14 +212,15 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
             <strong className={styles.name}>{purchase.strainName}</strong>
           </div>
           {purchase.brand && <div className={styles.brand}>{purchase.brand}</div>}
-          {purchase.lineage && <div className={styles.lineage}>Lineage: {purchase.lineage}</div>}
         </div>
 
         <div className={styles.right}>
           {!depleted && isLow && (
             <span className={`${styles.stateBadge} ${styles.badgeLow}`}>LOW AMOUNT</span>
           )}
-          {depleted && <span className={`${styles.stateBadge} ${styles.badgeDepleted}`}>Depleted</span>}
+          {depleted && (
+            <span className={`${styles.stateBadge} ${styles.badgeDepleted}`}>Depleted</span>
+          )}
 
           <div className={styles.quantities}>
             <div>Purchased: {formatWeight(purchase.totalGrams)}</div>
@@ -188,37 +230,63 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
           </div>
         </div>
       </div>
-
+          {purchase.lineage && <div className={styles.lineage}>Lineage: {purchase.lineage}</div>}
       <div className={styles.infoCenter}>
         {purchase.purchaseDate && (
-          <span className={styles.metaItem}>
-            <span className={styles.metaLabel}>Purchased:</span>
+          <div className={styles.infoRow}>
+            <span className={styles.infoLabel}>Purchased :</span>
             <span className={styles.valuePill}>{formatToMDY(purchase.purchaseDate)}</span>
-          </span>
+          </div>
         )}
-        {hasAnyPotency && (
-          <span className={styles.metaItem}>
-            <span className={styles.metaLabel}>THC:</span>
-            <span className={styles.valuePill}>{totalPotency}%</span>
-          </span>
-        )}
+
         {purchase.totalCostCents != null && (
-          <span className={styles.metaItem}>
-            <span className={styles.metaLabel}>Spent:</span>
-            <span className={styles.valuePill}>${centsToDollarString(purchase.totalCostCents)}</span>
-          </span>
+          <div className={styles.infoRow}>
+            <span className={styles.infoLabel}>Spent :</span>
+            <span className={styles.valuePill}>
+              ${centsToDollarString(purchase.totalCostCents)}
+            </span>
+          </div>
         )}
+
         {unitPrice != null && (
-          <span className={styles.metaItem}>
-            <span className={styles.metaLabel}>Unit:</span>
+          <div className={styles.infoRow}>
+            <span className={styles.infoLabel}>Price Per :</span>
             <span className={styles.valuePill}>~${unitPrice.toFixed(2)}/g</span>
-          </span>
+          </div>
+        )}
+
+        {hasAnyPotency && (
+          <div className={styles.infoRow}>
+            <span className={styles.infoLabel}>THC Potency :</span>
+            <span className={styles.valuePill}>{totalPotency}%</span>
+          </div>
         )}
       </div>
 
-      <div className={styles.progressOuter}>
-        <div className={styles.progressInner} style={{ width: `${pct}%` }} />
+      <div className={styles.progressBlock}>
+        <div className={styles.progressHeader}>
+          <span className={styles.progressLabel}>Remaining</span>
+          <span className={styles.progressValue}>{pctRounded}%</span>
+        </div>
+        <div className={styles.progressOuter}>
+          <div className={styles.progressInner} style={{ width: `${pct}%` }} />
+        </div>
       </div>
+
+      {hasWaste && (
+        <div className={styles.wasteLine}>
+          Waste:{' '}
+          <span className={styles.wasteValue}>
+            {purchase.wasteGrams!.toFixed(2)} g
+          </span>
+          {typeof purchase.wastePercent === 'number' && (
+            <span className={styles.wastePercent}>
+              {' '}
+              ({purchase.wastePercent.toFixed(2)}%)
+            </span>
+          )}
+        </div>
+      )}
 
       <div className={styles.actions}>
         <button

@@ -36,6 +36,9 @@ type ArchiveEntry = {
     totalCostCents?: number;
     purchaseDate?: string | null;
   };
+
+  wasteGrams?: number;
+  wastePercent?: number;
 };
 
 function centsToDollarString(cents?: number | null) {
@@ -63,15 +66,40 @@ function formatToMDY(d?: string | number | Date | null) {
   return `${mm}-${dd}-${yyyy}`;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const G_PER_OZ = 28;
+const FRACTIONS = [
+  { g: 3.5,  frac: "⅛"  },
+  { g: 7,    frac: "¼"  },
+  { g: 14,   frac: "½"  },
+  { g: 21,   frac: "¾"  },
+];
+
 function formatWeight(g?: number | null) {
-  const grams = Math.max(0, Number(g || 0));
-  if (grams >= G_PER_OZ) {
-    const oz = Math.floor(grams / G_PER_OZ);
-    const rem = +(grams % G_PER_OZ).toFixed(2);
-    return rem > 0 ? `${oz} oz + ${rem} g` : `${oz} oz`;
+  const gramsRaw = Number(g ?? 0);
+  const grams = Math.max(0, gramsRaw);
+  if (!Number.isFinite(grams)) return "0 g";
+
+  if (grams < G_PER_OZ) {
+    const match = FRACTIONS.find(f => Math.abs(grams - f.g) < 0.01);
+    if (match) return `${match.frac} oz (${match.g} g)`;
+
+    return `${grams.toFixed(2).replace(/\.00$/, "")} g`;
   }
-  return `${+grams.toFixed(2)} g`;
+
+  const fullOz = Math.floor(grams / G_PER_OZ);
+  const remainder = grams - fullOz * G_PER_OZ;
+
+  let fraction = "";
+  const match = FRACTIONS.find(f => Math.abs(remainder - f.g) < 0.01);
+  if (match) fraction = match.frac + " ";
+  const label =
+    fraction
+      ? `${fullOz} ${fraction}oz`
+      : `${fullOz} oz`;
+
+  return `${label} (${grams.toFixed(2).replace(/\.00$/, "")} g)`;
 }
 
 function finishedMs(e: ArchiveEntry): number {
@@ -84,6 +112,14 @@ function finishedMs(e: ArchiveEntry): number {
     if (!Number.isNaN(t)) return t;
   }
   return typeof e.time === 'number' ? e.time : 0;
+}
+
+function purchaseStartMs(e: ArchiveEntry): number | null {
+  const iso = e.purchaseMadeDateISO ?? e.purchaseSnapshot?.purchaseDate ?? null;
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  return t;
 }
 
 function badgeClass(t?: StrainType) {
@@ -197,19 +233,19 @@ export default function PurchaseHistory({ uid }: { uid: string }) {
         <>
           <div className={styles.summaryRow}>
             <span className={`${styles.summaryPill} ${styles.pillCount}`}>
-              <span className={styles.pillLabel}>Past Purchases</span>
+              <span className={styles.pillLabel}>Past Purchases :</span>
               <span className={styles.pillValue}>{items.length}</span>
             </span>
 
             {totalSpent > 0 && (
               <span className={`${styles.summaryPill} ${styles.pillSpent}`}>
-                <span className={styles.pillLabel}>Spent</span>
+                <span className={styles.pillLabel}>Spent :</span>
                 <span className={styles.pillValue}>${centsToDollarString(totalSpent)}</span>
               </span>
             )}
 
             <span className={`${styles.summaryPill} ${styles.pillQty}`}>
-              <span className={styles.pillLabel}>Purchased</span>
+              <span className={styles.pillLabel}> Total Purchased :</span>
               <span className={styles.pillValue}>{totalQtyPretty}</span>
             </span>
           </div>
@@ -236,43 +272,85 @@ export default function PurchaseHistory({ uid }: { uid: string }) {
 
               const removing = deletingId === e.id;
 
+              const hasWaste =
+                typeof e.wasteGrams === 'number' && e.wasteGrams > 0;
+
+              const startMs = purchaseStartMs(e);
+              const endMs = finishedMs(e);
+              let durationDays: number | null = null;
+              if (startMs != null && endMs && endMs >= startMs) {
+                durationDays = Math.max(1, Math.round((endMs - startMs) / DAY_MS));
+              }
+
               return (
                 <div key={e.id} className={`card ${styles.item}`}>
                   <div className={styles.titleRow}>
                     <div className={styles.title}>{e.strainName || 'Untitled'}</div>
-                    <span className={`badge ${badgeClass(e.strainType)}`}>{e.strainType || 'Hybrid'}</span>
+                    <span className={`badge ${badgeClass(e.strainType)}`}>
+                      {e.strainType || 'Hybrid'}
+                    </span>
                   </div>
 
                   {e.brand && <div className={styles.brand}>{e.brand}</div>}
 
-                  <div className={styles.meta}>
+                  {durationDays != null && (
+                    <div className={styles.duration}>
+                      Purchase Length : {durationDays} {durationDays === 1 ? 'Day' : 'Days'}
+                    </div>
+                  )}
+
+                  {/* New info column layout */}
+                  <div className={styles.infoColumn}>
                     {purchased && (
-                      <span className={styles.metaChip}>
-                        <span className={styles.metaChipLabel}>Purchased:</span> {purchased}
-                      </span>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>Date Purchased :</span>
+                        <span className={styles.infoPill}>{purchased}</span>
+                      </div>
                     )}
-                    <span className={styles.metaChip}>
-                      <span className={styles.metaChipLabel}>Finished:</span> {finished}
-                    </span>
+
+                    <div className={styles.infoRow}>
+                      <span className={styles.infoLabel}>Date Finished :</span>
+                      <span className={styles.infoPill}>{finished}</span>
+                    </div>
+
+                    {typeof grams === 'number' && (
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>Quantity :</span>
+                        <span className={styles.infoPill}>{qtyPretty}</span>
+                      </div>
+                    )}
+
+                    {spent != null && (
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>Spent :</span>
+                        <span className={styles.infoPill}>
+                          ${centsToDollarString(spent)}
+                        </span>
+                      </div>
+                    )}
+
+                    {(e.thcPercent != null || e.thcaPercent != null) && (
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>THC Potency:</span>
+                        <span className={styles.infoPill}>{potency}%</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className={styles.stats}>
-                    {typeof grams === 'number' && (
-                      <span className={styles.metaChip}>
-                        <span className={styles.metaChipLabel}>Quantity:</span> {qtyPretty}
+                  {hasWaste && (
+                    <div className={styles.wasteLine}>
+                      Waste{' '}
+                      <span className={styles.wasteValue}>
+                        {e.wasteGrams!.toFixed(2)} g
                       </span>
-                    )}
-                    {spent != null && (
-                      <span className={styles.metaChip}>
-                        <span className={styles.metaChipLabel}>Spent:</span> ${centsToDollarString(spent)}
-                      </span>
-                    )}
-                    {(e.thcPercent != null || e.thcaPercent != null) && (
-                      <span className={styles.metaChip}>
-                        <span className={styles.metaChipLabel}>THC:</span> {potency}%
-                      </span>
-                    )}
-                  </div>
+                      {typeof e.wastePercent === 'number' && (
+                        <span className={styles.wastePercent}>
+                          {' '}
+                          ({e.wastePercent.toFixed(2)}%)
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className={styles.footer}>
                     <button

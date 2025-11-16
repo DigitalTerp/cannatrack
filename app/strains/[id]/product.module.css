@@ -93,7 +93,6 @@
   word-break: break-word;
 }
 
-/* Sections */
 .section { margin: 1.4rem 0 0.5rem; }
 .h3 {
   margin: 0.6rem 0 0.6rem;
@@ -102,7 +101,6 @@
   opacity: 0.9;
 }
 
-/* Shared stat/badge presentation outside the About block */
 .statRow {
   display: flex;
   flex-wrap: wrap;
@@ -150,17 +148,6 @@
   gap: 0.6rem;
   padding: 0.9rem 1rem;
 }
-.cardRowTight { display: flex; justify-content: center; }
-.statePill {
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: .08em;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
-}
-.pillActive { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
-.pillDone   { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
 
 .statLine {
   display: flex;
@@ -177,7 +164,6 @@
   gap: 0.45rem;
 }
 
-/* Make the potency pair drop to a new line on smaller screens */
 @media (max-width: 720px) {
   .pairBreakSm { flex-basis: 100%; justify-content: center; }
 }
@@ -207,7 +193,6 @@
   .cards { grid-template-columns: 1fr; }
 }
 
-/* ===== Danger Zone (bottom action) ===== */
 .dangerZone {
   margin: 2rem 0 3rem;
   display: grid;
@@ -270,3 +255,153 @@
   filter: grayscale(0.25);
 }
 
+.infoColumn {
+  margin-top: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.infoLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280; 
+  white-space: nowrap;
+}
+
+.infoPill {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+  max-width: 70%;
+  text-align: right;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .infoLabel {
+    color: #9ca3af; 
+  }
+  .infoPill {
+    background: #111827;
+    border-color: #374151;
+    color: #e5e7eb;
+  }
+}
+
+.purchaseCard {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  text-align: left;
+}
+
+.methodsCard {
+  margin-top: 0.6rem;
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.h3Sub {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  opacity: 0.9;
+  text-align: center;
+}
+
+.methodList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.methodRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.methodHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.methodName {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.methodMeta {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.methodBarOuter {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.methodBarInner {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  width: 0%;
+  transition: width 200ms ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .methodMeta {
+    color: #9ca3af;
+  }
+  .methodBarOuter {
+    background: #1f2933;
+  }
+  .methodBarInner {
+    background: linear-gradient(90deg, #4ade80, #22c55e);
+  }
+}
+
+.methodFooter {
+  margin-top: 0.4rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.methodsLink {
+  font-size: 0.85rem;
+}
+
+.wasteNoteInline {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: #6b7280;
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  .wasteNoteInline {
+    color: #9ca3af;
+  }
+}

@@ -274,3 +274,101 @@
     color: #e5e7eb;
   }
 }
+
+.wasteLine {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  text-align: center;
+  color: #991b1b;
+}
+
+.wasteValue {
+  font-weight: 600;
+}
+
+.wastePercent {
+  font-weight: 500;
+  color: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .wasteLine {
+    color: #fecaca;
+  }
+  .wastePercent {
+    color: #fee2e2;
+  }
+}
+
+.duration {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  .duration {
+    color: #9ca3af; 
+  }
+}
+
+.infoColumn {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: stretch;
+  text-align: left;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.infoLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280; 
+  white-space: nowrap;
+}
+
+.infoPill {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+  max-width: 70%;
+  text-align: right;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .infoLabel {
+    color: #9ca3af; 
+  }
+  .infoPill {
+    background: #1f2933;
+    border-color: #374151;
+    color: #e5e7eb;
+  }
+}
+
+.item {
+  padding: 1rem 1.25rem;
+  text-align: left;
+}
+.titleRow {
+  justify-content: space-between;
+}
+.brand {
+  text-align: left;
+  font-style: italic;
+}

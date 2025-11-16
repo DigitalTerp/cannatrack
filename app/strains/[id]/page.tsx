@@ -22,10 +22,12 @@ function sumPotency(thc?: number | null, thca?: number | null) {
   const v = Math.round((a + b) * 10) / 10;
   return v % 1 === 0 ? v.toFixed(0) : v.toFixed(1);
 }
+
 function formatToMDY(d?: string | number | Date | null) {
   if (!d) return '';
   if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
-    const [yyyy, mm, dd] = d.split('-'); return `${mm}-${dd}-${yyyy}`;
+    const [yyyy, mm, dd] = d.split('-');
+    return `${mm}-${dd}-${yyyy}`;
   }
   const dt = new Date(d as any);
   if (Number.isNaN(dt.getTime())) return String(d);
@@ -34,16 +36,42 @@ function formatToMDY(d?: string | number | Date | null) {
   const yyyy = dt.getFullYear();
   return `${mm}-${dd}-${yyyy}`;
 }
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const G_PER_OZ = 28;
+const FRACTIONS = [
+  { g: 3.5,  frac: "⅛"  },
+  { g: 7,    frac: "¼"  },
+  { g: 14,   frac: "½"  },
+  { g: 21,   frac: "¾"  },
+];
+
 function formatWeight(g?: number | null) {
-  const grams = Math.max(0, Number(g || 0));
-  if (grams >= G_PER_OZ) {
-    const oz = Math.floor(grams / G_PER_OZ);
-    const rem = +(grams % G_PER_OZ).toFixed(2);
-    return rem > 0 ? `${oz} oz + ${rem} g` : `${oz} oz`;
+  const gramsRaw = Number(g ?? 0);
+  const grams = Math.max(0, gramsRaw);
+  if (!Number.isFinite(grams)) return "0 g";
+
+  if (grams < G_PER_OZ) {
+    const match = FRACTIONS.find(f => Math.abs(grams - f.g) < 0.01);
+    if (match) return `${match.frac} oz (${match.g} g)`;
+
+    return `${grams.toFixed(2).replace(/\.00$/, "")} g`;
   }
-  return `${+grams.toFixed(2)} g`;
+
+  const fullOz = Math.floor(grams / G_PER_OZ);
+  const remainder = grams - fullOz * G_PER_OZ;
+
+  let fraction = "";
+  const match = FRACTIONS.find(f => Math.abs(remainder - f.g) < 0.01);
+  if (match) fraction = match.frac + " ";
+  const label =
+    fraction
+      ? `${fullOz} ${fraction}oz`
+      : `${fullOz} oz`;
+
+  return `${label} ( ${grams.toFixed(2).replace(/\.00$/, "")}g )`;
 }
+
 function badgeClass(t?: StrainType) {
   const key = (t || 'Hybrid').toLowerCase();
   if (key === 'indica') return `${typeStyles.typeBadge} ${typeStyles['type-indica']}`;
@@ -94,7 +122,9 @@ export default function CultivarProductPage() {
         if (alive) setLoading(false);
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [user, id]);
 
   const stats = useMemo(() => {
@@ -111,17 +141,37 @@ export default function CultivarProductPage() {
   }, [entries]);
 
   const cultivators = useMemo(() => {
-    const map = new Map<string, {
-      brand: string; sessions: number; grams: number;
-      ratingSum: number; ratingCount: number; potSum: number; potCount: number
-    }>();
+    const map = new Map<
+      string,
+      {
+        brand: string;
+        sessions: number;
+        grams: number;
+        ratingSum: number;
+        ratingCount: number;
+        potSum: number;
+        potCount: number;
+      }
+    >();
     entries.forEach((e: any) => {
       const key = (e.brandLower || 'unknown') as string;
       const brand = (e.brand || 'Unknown') as string;
-      const agg = map.get(key) || { brand, sessions: 0, grams: 0, ratingSum: 0, ratingCount: 0, potSum: 0, potCount: 0 };
+      const agg =
+        map.get(key) || {
+          brand,
+          sessions: 0,
+          grams: 0,
+          ratingSum: 0,
+          ratingCount: 0,
+          potSum: 0,
+          potCount: 0,
+        };
       agg.sessions += 1;
       agg.grams += typeof e.weight === 'number' ? e.weight : 0;
-      if (typeof e.rating === 'number') { agg.ratingSum += e.rating; agg.ratingCount += 1; }
+      if (typeof e.rating === 'number') {
+        agg.ratingSum += e.rating;
+        agg.ratingCount += 1;
+      }
       if (typeof e.thcPercent === 'number' || typeof e.thcaPercent === 'number') {
         agg.potSum += Number(sumPotency(e.thcPercent, e.thcaPercent));
         agg.potCount += 1;
@@ -136,7 +186,41 @@ export default function CultivarProductPage() {
         avgRating: g.ratingCount ? Number((g.ratingSum / g.ratingCount).toFixed(2)) : null,
         avgPotency: g.potCount ? Number((g.potSum / g.potCount).toFixed(1)) : null,
       }))
-      .sort((a, b) => (b.sessions - a.sessions) || (b.grams - a.grams));
+      .sort((a, b) => b.sessions - a.sessions || b.grams - a.grams);
+  }, [entries]);
+
+  const methodStats = useMemo(() => {
+    if (!entries.length) return [] as { method: string; sessions: number; grams: number; pct: number }[];
+
+    const map = new Map<string, { sessions: number; grams: number }>();
+    entries.forEach((e: any) => {
+      const method = (e.method as string) || 'Unknown';
+      const w =
+        typeof e.weight === 'number'
+          ? e.weight
+          : typeof e.weight === 'string'
+          ? Number(e.weight)
+          : 0;
+      const grams = Number.isFinite(w) ? w : 0;
+
+      const agg = map.get(method) || { sessions: 0, grams: 0 };
+      agg.sessions += 1;
+      agg.grams += grams;
+      map.set(method, agg);
+    });
+
+    const arr = Array.from(map.entries()).map(([method, v]) => ({
+      method,
+      sessions: v.sessions,
+      grams: Number(v.grams.toFixed(2)),
+    }));
+
+    const maxGrams = arr.reduce((max, v) => Math.max(max, v.grams), 0) || 1;
+
+    return arr.map((v) => ({
+      ...v,
+      pct: (v.grams / maxGrams) * 100,
+    }));
   }, [entries]);
 
   if (!user) return <div className="card">Please sign in.</div>;
@@ -147,7 +231,9 @@ export default function CultivarProductPage() {
     if (!user || !strain || deleting) return;
 
     if (currentPurchases.length > 0) {
-      alert('You still have ACTIVE purchases for this Cultivar. Finish or remove them before deleting the cultivar.');
+      alert(
+        'You still have ACTIVE purchases for this Cultivar. Finish or remove them before deleting the cultivar.'
+      );
       return;
     }
 
@@ -182,7 +268,10 @@ export default function CultivarProductPage() {
         <div className={styles.aboutCell}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.h2}>Cultivar Info</h2>
-            <Link href={`/strains/${strain.id}/edit`} className={`btn btn-ghost ${styles.inlineEdit}`}>
+            <Link
+              href={`/strains/${strain.id}/edit`}
+              className={`btn btn-ghost ${styles.inlineEdit}`}
+            >
               Edit
             </Link>
           </div>
@@ -251,33 +340,36 @@ export default function CultivarProductPage() {
             <div className={styles.cards}>
               {currentPurchases.map((p) => {
                 const pct =
-                  p.totalGrams > 0 ? Math.max(0, Math.min(100, (p.remainingGrams / p.totalGrams) * 100)) : 0;
+                  p.totalGrams > 0
+                    ? Math.max(0, Math.min(100, (p.remainingGrams / p.totalGrams) * 100))
+                    : 0;
+
                 return (
                   <div key={p.id} className={`card ${styles.purchaseCard}`}>
-                    <div className={styles.cardRowTight}>
-                      <span className={`${styles.statePill} ${styles.pillActive}`}>ACTIVE</span>
-                    </div>
-
-                    <div className={styles.statLine}>
-                      <span className={styles.statLabel}>Quantity</span>
-                      <span className={`badge ${styles.statBadge}`}>{formatWeight(p.totalGrams)}</span>
-                      <span className={styles.statLabel}>Remaining</span>
-                      <span className={`badge ${styles.statBadge}`}>{formatWeight(p.remainingGrams)}</span>
-                    </div>
-
-                    <div className={styles.progressOuter}>
+                    <div className={styles.infoColumn}>
+                        <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>Purchased Date :</span>
+                        <span className={styles.infoPill}>{formatToMDY(p.purchaseDate)}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>Purchased Quantity :</span>
+                        <span className={styles.infoPill}>{formatWeight(p.totalGrams)}</span>
+                      </div>
+                                              {typeof p.totalCostCents === 'number' && (
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Spent</span>
+                          <span className={styles.infoPill}>
+                            ${(p.totalCostCents / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      <div className={styles.progressOuter}>
                       <div className={styles.progressInner} style={{ width: `${pct}%` }} />
                     </div>
-
-                    <div className={styles.statLine}>
-                      <span className={styles.statLabel}>Purchased</span>
-                      <span className={`badge ${styles.statBadge}`}>{formatToMDY(p.purchaseDate)}</span>
-                      {typeof p.totalCostCents === 'number' && (
-                        <>
-                          <span className={styles.statLabel}>Spent</span>
-                          <span className={`badge ${styles.statBadge}`}>${(p.totalCostCents/100).toFixed(2)}</span>
-                        </>
-                      )}
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>Remaining Quantity :</span>
+                        <span className={styles.infoPill}>{formatWeight(p.remainingGrams)}</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -286,44 +378,110 @@ export default function CultivarProductPage() {
           </>
         )}
 
-        {!!archivedPurchases.length && (
-          <>
-            <h3 className={styles.h3}>Finished</h3>
-            <div className={styles.cards}>
-              {archivedPurchases.map((a) => (
-                <div key={a.id} className={`card ${styles.purchaseCard}`}>
-                  <div className={styles.cardRowTight}>
-                    <span className={`${styles.statePill} ${styles.pillDone}`}>FINISHED</span>
-                  </div>
+       {!!archivedPurchases.length && (
+  <>
+    <h3 className={styles.h3}>Finished</h3>
+    <div className={styles.cards}>
+      {archivedPurchases.map((a) => {
+        const grams = a.purchaseSnapshot?.totalGrams;
+        const spent = a.purchaseSnapshot?.totalCostCents;
 
-                  <div className={styles.statLine}>
-                    <span className={styles.statLabel}>Quantity</span>
-                    <span className={`badge ${styles.statBadge}`}>{formatWeight(a.purchaseSnapshot?.totalGrams)}</span>
-                    {typeof a.purchaseSnapshot?.totalCostCents === 'number' && (
-                      <>
-                        <span className={styles.statLabel}>Spent</span>
-                        <span className={`badge ${styles.statBadge}`}>
-                          ${(a.purchaseSnapshot.totalCostCents/100).toFixed(2)}
-                        </span>
-                      </>
-                    )}
-                  </div>
+        const purchasedISO =
+          a.purchaseMadeDateISO || a.purchaseSnapshot?.purchaseDate || null;
+        const finishedISOorMs =
+          a.purchaseFinishedDateISO ?? a.purchaseFinishedAtMs ?? a.time;
 
-                  <div className={styles.statLine}>
-                    <span className={styles.statLabel}>Purchased</span>
-                    <span className={`badge ${styles.statBadge}`}>
-                      {formatToMDY(a.purchaseMadeDateISO || a.purchaseSnapshot?.purchaseDate)}
-                    </span>
-                    <span className={styles.statLabel}>Finished</span>
-                    <span className={`badge ${styles.statBadge}`}>
-                      {formatToMDY(a.purchaseFinishedDateISO || a.purchaseFinishedAtMs || a.time)}
-                    </span>
-                  </div>
+        const purchasedPretty = purchasedISO ? formatToMDY(purchasedISO) : null;
+        const finishedPretty = finishedISOorMs ? formatToMDY(finishedISOorMs) : null;
+
+        let durationDays: number | null = null;
+        let startMs: number | null = null;
+        let endMs: number | null = null;
+
+        if (purchasedISO) {
+          const t = Date.parse(purchasedISO);
+          if (!Number.isNaN(t)) startMs = t;
+        }
+        if (typeof finishedISOorMs === 'number') {
+          endMs = finishedISOorMs;
+        } else if (finishedISOorMs) {
+          const t2 = Date.parse(finishedISOorMs as string);
+          if (!Number.isNaN(t2)) endMs = t2;
+        }
+        if (startMs != null && endMs != null && endMs >= startMs) {
+          durationDays = Math.max(1, Math.round((endMs - startMs) / DAY_MS));
+        }
+
+        const wasteGrams =
+          typeof a.wasteGrams === 'number' ? a.wasteGrams : null;
+        const wastePercent =
+          typeof a.wastePercent === 'number' ? a.wastePercent : null;
+
+        return (
+          <div key={a.id} className={`card ${styles.purchaseCard}`}>
+            <div className={styles.infoColumn}>
+              {typeof grams === 'number' && (
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Quantity :</span>
+                  <span className={styles.infoPill}>{formatWeight(grams)}</span>
                 </div>
-              ))}
+              )}
+
+              {spent != null && (
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Spent :</span>
+                  <span className={styles.infoPill}>
+                    ${(spent / 100).toFixed(2)}
+                  </span>
+                </div>
+              )}
+                {durationDays != null && (
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Purchase Length :</span>
+                  <span className={styles.infoPill}>
+                    {durationDays} {durationDays === 1 ? 'Day' : 'Days'}
+                  </span>
+                </div>
+              )}
+
+              {purchasedPretty && (
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Purchased Date :</span>
+                  <span className={styles.infoPill}>{purchasedPretty}</span>
+                </div>
+              )}
+
+              {finishedPretty && (
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Finished Date :</span>
+                  <span className={styles.infoPill}>{finishedPretty}</span>
+                </div>
+              )}
+
+              {wasteGrams != null && wasteGrams > 0 && (
+                <>
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>Waste** :</span>
+                    <span className={styles.infoPill}>
+                      {wasteGrams.toFixed(2)} g
+                      {typeof wastePercent === 'number'
+                        ? ` (${wastePercent.toFixed(2)}%)`
+                        : ''}
+                    </span>
+                  </div>
+                  <div className={styles.wasteNoteInline}>
+                    ** Waste includes leftover material you didn&apos;t consume,
+                    or stems, seeds, or other unusable bits.
+                  </div>
+                </>
+              )}
             </div>
-          </>
-        )}
+          </div>
+        );
+      })}
+    </div>
+  </>
+)}
       </section>
 
       <section className={styles.section}>
@@ -349,44 +507,53 @@ export default function CultivarProductPage() {
         </div>
 
         {!!entries.length && (
-          <div className={styles.cards}>
-            {entries.map((e) => (
-              <div key={e.id} className={`card ${styles.entryCard}`}>
-                <div className={styles.statLine}>
-                  <span className={styles.statLabel}>Method</span>
-                  <span className={`badge ${styles.statBadge}`}>{e.method}</span>
-                  <span className={styles.statLabel}>Date</span>
-                  <span className={`badge ${styles.statBadge}`}>{formatToMDY(e.time)}</span>
-                  {((e as any).thcPercent != null || (e as any).thcaPercent != null) && (
-                    <>
-                      <span className={styles.statLabel}>Potency</span>
-                      <span className={`badge ${styles.statBadge}`}>
-                        {sumPotency((e as any).thcPercent, (e as any).thcaPercent)}%
+          <div className={`card ${styles.methodsCard}`}>
+            <h3 className={styles.h3Sub}>Methods & Amounts</h3>
+
+            {!methodStats.length ? (
+              <p className={styles.subtle}>No method data yet.</p>
+            ) : (
+              <div className={styles.methodList}>
+                {methodStats.map((m) => (
+                  <div key={m.method} className={styles.methodRow}>
+                    <div className={styles.methodHeader}>
+                      <span className={styles.methodName}>{m.method}</span>
+                      <span className={styles.methodMeta}>
+                        {m.sessions} Sessions · {m.grams.toFixed(2)} g
                       </span>
-                    </>
-                  )}
-                  {typeof (e as any).weight === 'number' && (
-                    <>
-                      <span className={styles.statLabel}>Weight</span>
-                      <span className={`badge ${styles.statBadge}`}>
-                        {((e as any).weight as number).toFixed(2)} g
-                      </span>
-                    </>
-                  )}
-                </div>
+                    </div>
+                    <div className={styles.methodBarOuter}>
+                      <div
+                        className={styles.methodBarInner}
+                        style={{ width: `${m.pct}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            <div className={styles.methodFooter}>
+              <Link
+                href={`/strains/${strain.id}/consumption`}
+                className={`btn btn-ghost ${styles.methodsLink}`}
+              >
+                View Full Consumption Log →
+              </Link>
+            </div>
           </div>
         )}
       </section>
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.h2}> Cultivators Consumption Statics</h2>
+          <h2 className={styles.h2}>Cultivators Consumption Statics</h2>
         </div>
 
         {!cultivators.length ? (
-          <p className="subtle" style={{ textAlign: 'center' }}>No sessions yet for this cultivar.</p>
+          <p className="subtle" style={{ textAlign: 'center' }}>
+            No sessions yet for this cultivar.
+          </p>
         ) : (
           <div className={styles.cards}>
             {cultivators.map((c) => (
@@ -394,29 +561,30 @@ export default function CultivarProductPage() {
                 <div className={styles.brandHeader}>
                   <strong className={styles.brandName}>{c.brand}</strong>
                 </div>
-                <div className={styles.statLine}>
-                  <span className={styles.pair}>
-                    <span className={styles.statLabel}>Sessions</span>
-                    <span className={`badge ${styles.statBadge}`}>{c.sessions}</span>
-                  </span>
 
-                  <span className={styles.pair}>
-                    <span className={styles.statLabel}>Total</span>
-                    <span className={`badge ${styles.statBadge}`}>{formatWeight(c.grams)}</span>
-                  </span>
+                <div className={styles.infoColumn}>
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>Sessions</span>
+                    <span className={styles.infoPill}>{c.sessions}</span>
+                  </div>
+
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>Total</span>
+                    <span className={styles.infoPill}>{formatWeight(c.grams)}</span>
+                  </div>
 
                   {c.avgPotency != null && (
-                    <span className={`${styles.pair} ${styles.pairBreakSm}`}>
-                      <span className={styles.statLabel}>Potency</span>
-                      <span className={`badge ${styles.statBadge}`}>{c.avgPotency}%</span>
-                    </span>
+                    <div className={styles.infoRow}>
+                      <span className={styles.infoLabel}>Avg Potency</span>
+                      <span className={styles.infoPill}>{c.avgPotency}%</span>
+                    </div>
                   )}
 
                   {c.avgRating != null && (
-                    <span className={styles.pair}>
-                      <span className={styles.statLabel}>Avg rating</span>
-                      <span className={`badge ${styles.statBadge}`}>{c.avgRating}</span>
-                    </span>
+                    <div className={styles.infoRow}>
+                      <span className={styles.infoLabel}>Avg Rating</span>
+                      <span className={styles.infoPill}>{c.avgRating}</span>
+                    </div>
                   )}
                 </div>
               </div>

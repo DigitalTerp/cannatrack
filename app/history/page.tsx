@@ -499,12 +499,12 @@ export default function HistoryPage() {
                 )}
                 {purchased && (
                   <div className={typeStyles.kvRow}>
-                    <span className={typeStyles.kvLabel}>Purchased</span>
+                    <span className={typeStyles.kvLabel}>Purchase Date</span>
                     <span className={typeStyles.kvValue}>{purchased}</span>
                   </div>
                 )}
                 <div className={typeStyles.kvRow}>
-                  <span className={typeStyles.kvLabel}>Finished</span>
+                  <span className={typeStyles.kvLabel}>Finish Date</span>
                   <span className={typeStyles.kvValue}>{finished}</span>
                 </div>
                 {typeof grams === 'number' && (
@@ -521,7 +521,7 @@ export default function HistoryPage() {
                 )}
                 {(p.thcPercent != null || p.thcaPercent != null) && (
                   <div className={typeStyles.kvRow}>
-                    <span className={typeStyles.kvLabel}>Potency</span>
+                    <span className={typeStyles.kvLabel}>THC Potency</span>
                     <span className={typeStyles.kvValue}>{potency}%</span>
                   </div>
                 )}

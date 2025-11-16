@@ -93,6 +93,43 @@ Training complete. First lightsaber constructed. Time to explore the galaxy (of 
 
 ## *** Updates
 
+## 2025-11-16 — Purchases and Cultivar Updates
+
+- **Improved weight formatting system**
+  - Added fractional ounce labels (⅛, ¼, ½, ¾ oz)
+  - Updated multi-ounce and gram formatting across the app
+
+- **Updated PurchaseCard UI**
+  - Moved lineage above the info center
+  - Enhanced mobile centering and spacing
+  - Refined progress bar placement
+
+- **Added Waste Display**
+  - New archive metric showing leftover material (stems, seeds, unusable bits)
+  - Displays waste grams and percentage
+  - Helps track usable vs. unusable product yield
+  - Includes contextual explanation within finished purchases
+
+- **Enhanced Finished Purchases view**
+  - Added Purchase Length (days between purchase → finish)
+  - Integrated new Waste Display styling
+
+- **Added new Cultivar Consumption Log**
+  - Replaces the old consumption section on the cultivar page
+  - Provides a clear breakdown of:
+    - Total sessions
+    - Total amount consumed
+    - Date range
+    - Average potency
+  - Includes filtering by consumption method
+  - More readable, report-like interface
+
+- **Adjustments to the Cultivar ID page**
+  - Changed Consumption section to show statistics
+  - Added link to the new Full Consumption Log
+
+- **Additional mobile responsiveness**
+
 ## 2025-10-06 — Edibles: mg display fix & quicker entry
 
 - Fixed an issue where edible **mg** amounts were not showing in **History** and **Daily** views.

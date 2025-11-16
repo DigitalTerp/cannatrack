@@ -21,31 +21,55 @@ function niceName() {
 
 const G_PER_OZ = 28;
 const G_PER_EIGHTH = 3.5;
+const G_PER_HALF_OZ = G_PER_OZ / 2;
 
-/** 3.5g steps up to 28g; above 28g use 7g steps, up to 10oz (280g). */
 function buildWeightOptions() {
-  const maxG = 10 * G_PER_OZ; // 10 oz
+  const maxG = 10 * G_PER_OZ; 
   const out: { label: string; grams: number }[] = [];
 
-  // ⅛ increments up to 1 oz
+  function labelWithHalfOz(grams: number): string {
+    const halfUnits = grams / G_PER_HALF_OZ;
+    const halfUnitsRounded = Math.round(halfUnits);
+
+    if (Math.abs(halfUnits - halfUnitsRounded) > 1e-6) {
+      return `${grams} g`;
+    }
+
+    const isHalfOnly = halfUnitsRounded === 1; 
+    const isEven = halfUnitsRounded % 2 === 0;
+
+    let ozLabel: string;
+
+    if (isHalfOnly) {
+      ozLabel = '½ oz';
+    } else if (isEven) {
+      const oz = halfUnitsRounded / 2; 
+      ozLabel = `${oz} oz`;
+    } else {
+      const wholeOz = Math.floor(halfUnitsRounded / 2); 
+      if (wholeOz === 0) {
+        ozLabel = '½ oz';
+      } else {
+        ozLabel = `${wholeOz}½ oz`;
+      }
+    }
+
+    return `${grams} g (${ozLabel})`;
+  }
+
   for (let g = G_PER_EIGHTH; g <= G_PER_OZ + 1e-9; g += G_PER_EIGHTH) {
     const grams = +g.toFixed(2);
-    const oz = grams / G_PER_OZ;
-    const label =
-      Math.abs(grams - G_PER_OZ) < 1e-6
-        ? `1 oz (${grams} g)`
-        : `${(grams / G_PER_EIGHTH).toFixed(1)} × ⅛ (${grams} g)`;
-    out.push({ label, grams });
+    out.push({ label: labelWithHalfOz(grams), grams });
   }
 
   for (let g = G_PER_OZ + 7; g <= maxG + 1e-9; g += 7) {
     const grams = +g.toFixed(2);
-    const oz = +(grams / G_PER_OZ).toFixed(2);
-    out.push({ label: `${oz} oz (${grams} g)`, grams });
+    out.push({ label: labelWithHalfOz(grams), grams });
   }
 
   return out;
 }
+
 
 export default function PurchaseForm() {
   const router = useRouter();
@@ -314,8 +338,7 @@ export default function PurchaseForm() {
           className={`btn btn-ghost ${styles.btnWide}`}
           type="button"
           onClick={() => router.push('/purchases')}
-          disabled={submitting}
-        >
+          disabled={submitting}>
           Cancel
         </button>
       </div>
