@@ -28,6 +28,8 @@ function buildWeightOptions() {
   const out: { label: string; grams: number }[] = [];
 
   function labelWithHalfOz(grams: number): string {
+    
+    if (Math.abs(grams - 1) < 1e-9) return `1 g`;
     const halfUnits = grams / G_PER_HALF_OZ;
     const halfUnitsRounded = Math.round(halfUnits);
 
@@ -56,6 +58,8 @@ function buildWeightOptions() {
 
     return `${grams} g (${ozLabel})`;
   }
+
+  out.push({ label: '1g', grams:1});
 
   for (let g = G_PER_EIGHTH; g <= G_PER_OZ + 1e-9; g += G_PER_EIGHTH) {
     const grams = +g.toFixed(2);

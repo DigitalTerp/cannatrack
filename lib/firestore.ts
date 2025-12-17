@@ -16,7 +16,6 @@ import {
 import { db } from './firebase';
 import type { Entry, Strain, StrainType } from './types';
 
-
 const now = () => Date.now();
 const isFiniteNumber = (v: any): v is number => typeof v === 'number' && Number.isFinite(v);
 
@@ -122,11 +121,11 @@ function coerceEdibleCategory(raw: any): EdibleCategory | undefined {
 
 const entriesCol = (uid: string) => collection(db, 'users', uid, 'entries');
 const strainsCol = (uid: string) => collection(db, 'users', uid, 'strains');
-const entryRef   = (uid: string, entryId: string) => doc(db, 'users', uid, 'entries', entryId);
-const strainRef  = (uid: string, strainId: string) => doc(db, 'users', uid, 'strains', strainId);
+const entryRef = (uid: string, entryId: string) => doc(db, 'users', uid, 'entries', entryId);
+const strainRef = (uid: string, strainId: string) => doc(db, 'users', uid, 'strains', strainId);
 
 const purchasesCol = (uid: string) => collection(db, 'users', uid, 'purchases');
-const purchaseRef  = (uid: string, purchaseId: string) => doc(db, 'users', uid, 'purchases', purchaseId);
+const purchaseRef = (uid: string, purchaseId: string) => doc(db, 'users', uid, 'purchases', purchaseId);
 
 const toCents = (v: any): number | undefined => {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
@@ -138,14 +137,19 @@ const STEP_EIGHTH = 3.5;
 const STEP_QUARTER = 7;
 
 function snapPurchaseGrams(g: number): number {
-  const grams = Math.max(0, Number(g) || 0);
+  const grams = Math.max(0, Number(g));
+
+  if (grams > 0 && grams <= 1.01) return 1;
+
   if (grams <= G_PER_OZ + 1e-9) {
     const steps = Math.round(grams / STEP_EIGHTH);
-    return Number((steps * STEP_EIGHTH).toFixed(2));
+    const snapped = Number((steps * STEP_EIGHTH).toFixed(2));
+    return snapped > 0 ? snapped : STEP_EIGHTH;
   }
-  const over = grams;
-  const steps = Math.round(over / STEP_QUARTER);
-  return Number((steps * STEP_QUARTER).toFixed(2));
+
+  const steps = Math.round(grams / STEP_QUARTER);
+  const snapped = Number((steps * STEP_QUARTER).toFixed(2));
+  return snapped > 0 ? snapped : STEP_QUARTER;
 }
 
 /* --------------------------- Cultivars ( Strains )--------------------------- */
@@ -186,9 +190,9 @@ export async function upsertStrainByName(uid: string, input: UpsertStrainInput):
     cbdPercent: isFiniteNumber(input.cbdPercent) ? input.cbdPercent : undefined,
     effects: Array.isArray(input.effects) ? input.effects : undefined,
     flavors: Array.isArray(input.flavors) ? input.flavors : undefined,
-    aroma:   Array.isArray(input.aroma)   ? input.aroma   : undefined,
-    rating:  isFiniteNumber(input.rating) ? input.rating  : undefined,
-    notes:   typeof input.notes === 'string' && input.notes.trim() ? input.notes.trim() : undefined,
+    aroma: Array.isArray(input.aroma) ? input.aroma : undefined,
+    rating: isFiniteNumber(input.rating) ? input.rating : undefined,
+    notes: typeof input.notes === 'string' && input.notes.trim() ? input.notes.trim() : undefined,
     updatedAt: now(),
   });
 
@@ -226,9 +230,9 @@ export async function getStrainById(uid: string, strainId: string): Promise<Stra
       updatedAt: isFiniteNumber(raw?.updatedAt) ? raw.updatedAt : undefined,
       effects: Array.isArray(raw?.effects) ? raw.effects : undefined,
       flavors: Array.isArray(raw?.flavors) ? raw.flavors : undefined,
-      aroma:   Array.isArray(raw?.aroma)   ? raw.aroma   : undefined,
-      rating:  isFiniteNumber(raw?.rating) ? raw.rating  : undefined,
-      notes:   typeof raw?.notes === 'string' ? raw.notes : undefined,
+      aroma: Array.isArray(raw?.aroma) ? raw.aroma : undefined,
+      rating: isFiniteNumber(raw?.rating) ? raw.rating : undefined,
+      notes: typeof raw?.notes === 'string' ? raw.notes : undefined,
     };
     return strain;
   } catch (err: any) {
@@ -258,9 +262,9 @@ export async function listStrains(uid: string): Promise<Strain[]> {
       updatedAt: isFiniteNumber(raw?.updatedAt) ? raw.updatedAt : undefined,
       effects: Array.isArray(raw?.effects) ? raw.effects : undefined,
       flavors: Array.isArray(raw?.flavors) ? raw.flavors : undefined,
-      aroma:   Array.isArray(raw?.aroma)   ? raw.aroma   : undefined,
-      rating:  isFiniteNumber(raw?.rating) ? raw.rating  : undefined,
-      notes:   typeof raw?.notes === 'string' ? raw.notes : undefined,
+      aroma: Array.isArray(raw?.aroma) ? raw.aroma : undefined,
+      rating: isFiniteNumber(raw?.rating) ? raw.rating : undefined,
+      notes: typeof raw?.notes === 'string' ? raw.notes : undefined,
     } as Strain;
   });
 }
@@ -268,6 +272,8 @@ export async function listStrains(uid: string): Promise<Strain[]> {
 export async function deleteStrain(uid: string, strainId: string): Promise<void> {
   await deleteDoc(strainRef(uid, strainId));
 }
+
+/* --------------------------- Entries --------------------------- */
 
 export async function createEntry(
   uid: string,
@@ -283,23 +289,25 @@ export async function createEntry(
 
   const strainNameRaw = (payload as any).strainName?.trim?.() || '';
   const strainType = normalizeStrainType((payload as any).strainType) || 'Hybrid';
-  const brand      = (payload as any).brand?.trim?.() || undefined;
-  const lineage    = (payload as any).lineage?.trim?.() || undefined;
+  const brand = (payload as any).brand?.trim?.() || undefined;
+  const lineage = (payload as any).lineage?.trim?.() || undefined;
   const flavors = toList((payload as any).flavors ?? (payload as any).taste);
-  const aroma   = toList((payload as any).aroma   ?? (payload as any).smell);
+  const aroma = toList((payload as any).aroma ?? (payload as any).smell);
   const effects = toList((payload as any).effects);
-  const rating  = toNum((payload as any).rating);
-  const notes   = (payload as any).notes?.trim?.() || undefined;
-  const thcPercent  = toNum((payload as any).thcPercent);
+  const rating = toNum((payload as any).rating);
+  const notes = (payload as any).notes?.trim?.() || undefined;
+  const thcPercent = toNum((payload as any).thcPercent);
   const thcaPercent = toNum((payload as any).thcaPercent);
-  const cbdPercent  = toNum((payload as any).cbdPercent);
+  const cbdPercent = toNum((payload as any).cbdPercent);
 
   const edibleName = (payload as any).edibleName?.trim?.() || undefined;
   const edibleCategory: EdibleCategory | undefined =
     coerceEdibleCategory(payload as any) ||
     normalizeEdibleCategory((payload as any).edibleType) ||
     undefined;
-  const edibleMg = parseMgToNumber((payload as any).edibleMg ?? (payload as any).dose ?? (payload as any).mg);
+  const edibleMg = parseMgToNumber(
+    (payload as any).edibleMg ?? (payload as any).dose ?? (payload as any).mg
+  );
 
   let strainId = (payload as any).strainId as string | undefined;
   if (!isEdible && strainNameRaw) {
@@ -327,7 +335,7 @@ export async function createEntry(
     time: isFiniteNumber((payload as any).time) ? (payload as any).time : now(),
     method: methodStr || (isEdible ? 'Edible' : (payload as any).method) || 'Pre-Roll',
 
-    strainId: !isEdible ? (strainId || (payload as any).strainId || undefined) : undefined,
+    strainId: !isEdible ? strainId || (payload as any).strainId || undefined : undefined,
     strainName: !isEdible ? strainNameRaw : undefined,
     strainNameLower: !isEdible && strainNameRaw ? strainNameRaw.toLowerCase() : undefined,
     strainType,
@@ -359,11 +367,7 @@ export async function createEntry(
   return res.id;
 }
 
-export async function updateEntry(
-  uid: string,
-  entryId: string,
-  patch: Partial<Entry>
-): Promise<void> {
+export async function updateEntry(uid: string, entryId: string, patch: Partial<Entry>): Promise<void> {
   const methodStr = String((patch as any).method ?? '').trim();
   const isEdiblePatch =
     methodStr.toLowerCase() === 'edible' ||
@@ -379,28 +383,30 @@ export async function updateEntry(
 
   const strainName = !isEdiblePatch ? (patch as any).strainName?.trim?.() : undefined;
   const strainType = normalizeStrainType((patch as any).strainType) || 'Hybrid';
-  const brand      = !isEdiblePatch ? (patch as any).brand?.trim?.() : undefined;
-  const lineage    = !isEdiblePatch ? (patch as any).lineage?.trim?.() : undefined;
+  const brand = !isEdiblePatch ? (patch as any).brand?.trim?.() : undefined;
+  const lineage = !isEdiblePatch ? (patch as any).lineage?.trim?.() : undefined;
 
   const flavors = !isEdiblePatch ? toList((patch as any).flavors ?? (patch as any).taste) : undefined;
-  const aroma   = !isEdiblePatch ? toList((patch as any).aroma   ?? (patch as any).smell) : undefined;
+  const aroma = !isEdiblePatch ? toList((patch as any).aroma ?? (patch as any).smell) : undefined;
 
   const effects = toList((patch as any).effects);
-  const rating  = toNum((patch as any).rating);
-  const notes   = (patch as any).notes?.trim?.();
+  const rating = toNum((patch as any).rating);
+  const notes = (patch as any).notes?.trim?.();
 
-  const thcPercent  = !isEdiblePatch ? toNum((patch as any).thcPercent)  : undefined;
+  const thcPercent = !isEdiblePatch ? toNum((patch as any).thcPercent) : undefined;
   const thcaPercent = !isEdiblePatch ? toNum((patch as any).thcaPercent) : undefined;
-  const cbdPercent  = !isEdiblePatch ? toNum((patch as any).cbdPercent)  : undefined;
+  const cbdPercent = !isEdiblePatch ? toNum((patch as any).cbdPercent) : undefined;
 
   const edibleName = isEdiblePatch ? (patch as any).edibleName?.trim?.() : undefined;
   const edibleCategory: EdibleCategory | undefined = isEdiblePatch
-    ? (coerceEdibleCategory(patch as any) ||
-       normalizeEdibleCategory((patch as any).edibleType) ||
-       normalizeEdibleCategory((patch as any).edibleKind) ||
-       undefined)
+    ? coerceEdibleCategory(patch as any) ||
+      normalizeEdibleCategory((patch as any).edibleType) ||
+      normalizeEdibleCategory((patch as any).edibleKind) ||
+      undefined
     : undefined;
-  const edibleMg   = isEdiblePatch ? parseMgToNumber((patch as any).edibleMg ?? (patch as any).dose ?? (patch as any).mg) : undefined;
+  const edibleMg = isEdiblePatch
+    ? parseMgToNumber((patch as any).edibleMg ?? (patch as any).dose ?? (patch as any).mg)
+    : undefined;
 
   const norm = stripUndefined({
     ...patch,
@@ -430,6 +436,7 @@ export async function updateEntry(
     edibleKind: edibleCategory,
     edibleMg,
   });
+
   await updateDoc(entryRef(uid, entryId), norm as any);
 
   const shouldTouchStrain =
@@ -448,9 +455,7 @@ export async function updateEntry(
 
   if (shouldTouchStrain) {
     const effectiveName =
-      typeof strainName === 'string' && strainName
-        ? strainName
-        : (patch as any).strainName || '';
+      typeof strainName === 'string' && strainName ? strainName : (patch as any).strainName || '';
     if (effectiveName) {
       try {
         await upsertStrainByName(uid, {
@@ -497,20 +502,19 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
       time: isFiniteNumber(raw?.time) ? raw.time : now(),
       method: raw?.method ?? 'Pre-Roll',
 
-      strainId: !isEdible ? (raw?.strainId ?? undefined) : undefined,
-      strainName: !isEdible ? (raw?.strainName ?? '') : '',
+      strainId: !isEdible ? raw?.strainId ?? undefined : undefined,
+      strainName: !isEdible ? raw?.strainName ?? '' : '',
       strainType: normalizeStrainType(raw?.strainType) || 'Hybrid',
-      strainNameLower:
-        !isEdible
-          ? (raw?.strainNameLower ??
-            (raw?.strainName ? String(raw.strainName).toLowerCase() : undefined))
-          : undefined,
-
-      brand: !isEdible ? (raw?.brand ?? undefined) : undefined,
-      brandLower: !isEdible
-        ? (raw?.brandLower ?? (raw?.brand ? String(raw.brand).toLowerCase() : undefined))
+      strainNameLower: !isEdible
+        ? raw?.strainNameLower ?? (raw?.strainName ? String(raw.strainName).toLowerCase() : undefined)
         : undefined,
-      lineage: !isEdible ? (raw?.lineage ?? undefined) : undefined,
+
+      brand: !isEdible ? raw?.brand ?? undefined : undefined,
+      brandLower: !isEdible
+        ? raw?.brandLower ?? (raw?.brand ? String(raw.brand).toLowerCase() : undefined)
+        : undefined,
+
+      lineage: !isEdible ? raw?.lineage ?? undefined : undefined,
       thcPercent: !isEdible && isFiniteNumber(raw?.thcPercent) ? raw.thcPercent : undefined,
       thcaPercent: !isEdible && isFiniteNumber(raw?.thcaPercent) ? raw.thcaPercent : undefined,
       cbdPercent: !isEdible && isFiniteNumber(raw?.cbdPercent) ? raw.cbdPercent : undefined,
@@ -557,11 +561,7 @@ export async function listAllEntries(uid: string): Promise<Entry[]> {
   return rows.filter((e: any) => e?.isPurchaseArchive !== true && e?.hiddenFromDaily !== true);
 }
 
-export async function listEntriesBetween(
-  uid: string,
-  startMs: number,
-  endMs: number
-): Promise<Entry[]> {
+export async function listEntriesBetween(uid: string, startMs: number, endMs: number): Promise<Entry[]> {
   const qy = query(
     entriesCol(uid),
     where('time', '>=', startMs),
@@ -576,13 +576,14 @@ export async function listEntriesBetween(
     ...(d.data() as Omit<Entry, 'id' | 'userId'>),
   })) as Entry[];
 
-  
   return rows.filter((e: any) => e?.isPurchaseArchive !== true && e?.hiddenFromDaily !== true);
 }
 
 export async function listEntriesForDay(uid: string, dayMs: number): Promise<Entry[]> {
-  const start = new Date(dayMs); start.setHours(0, 0, 0, 0);
-  const end = new Date(start);   end.setDate(start.getDate() + 1);
+  const start = new Date(dayMs);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 1);
 
   const qy = query(
     entriesCol(uid),
@@ -601,21 +602,22 @@ export async function listEntriesForDay(uid: string, dayMs: number): Promise<Ent
   return rows.filter((e: any) => e?.isPurchaseArchive !== true && e?.hiddenFromDaily !== true);
 }
 
+/* --------------------------- Purchases --------------------------- */
+
 export async function createPurchase(
   uid: string,
   input: {
     strainName: string;
     strainType: StrainType;
     lineage?: string;
-    brand?: string;           
+    brand?: string;
     thcPercent?: number;
     thcaPercent?: number;
-    grams: number;            
-    dollars?: number;         
-    purchaseDateISO?: string; 
+    grams: number;
+    dollars?: number;
+    purchaseDateISO?: string;
   }
 ): Promise<string> {
-
   try {
     await upsertStrainByName(uid, {
       name: input.strainName,
@@ -627,14 +629,24 @@ export async function createPurchase(
     });
   } catch {}
 
-  const snappedGrams = snapPurchaseGrams(Number(input.grams || 0));
+  const rawGrams =
+    typeof input.grams === 'number' ? input.grams : parseWeightToNumber((input as any).grams);
+
+  if (!isFiniteNumber(rawGrams) || rawGrams <= 0) {
+    throw new Error(`Invalid grams value: ${String(input.grams)}`);
+  }
+
+  const snappedGrams = snapPurchaseGrams(rawGrams);
+  if (!isFiniteNumber(snappedGrams) || snappedGrams <= 0) {
+    throw new Error(`Weight snapping produced invalid value: ${String(snappedGrams)}`);
+  }
 
   const docData = stripUndefined({
     strainName: input.strainName.trim(),
     strainNameLower: input.strainName.trim().toLowerCase(),
     strainType: input.strainType,
-    lineage: input.lineage,
-    brand: input.brand,
+    lineage: input.lineage?.trim() || undefined,
+    brand: input.brand?.trim() || undefined,
     thcPercent: isFiniteNumber(input.thcPercent) ? input.thcPercent : undefined,
     thcaPercent: isFiniteNumber(input.thcaPercent) ? input.thcaPercent : undefined,
 
@@ -643,7 +655,7 @@ export async function createPurchase(
     totalCostCents: toCents(input.dollars) ?? 0,
 
     purchaseDate: input.purchaseDateISO || new Date().toISOString().slice(0, 10),
-    status: snappedGrams <= 0 ? 'depleted' : 'active',
+    status: 'active',
     createdAt: now(),
     updatedAt: now(),
   });
@@ -655,7 +667,27 @@ export async function createPurchase(
 export async function listPurchases(uid: string) {
   const qy = query(purchasesCol(uid), orderBy('updatedAt', 'desc'));
   const snap = await getDocs(qy);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+
+  return snap.docs.map((d) => {
+    const raw = d.data() as any;
+    const totalGrams = parseWeightToNumber(raw?.totalGrams) ?? 0;
+    const remainingGrams = parseWeightToNumber(raw?.remainingGrams) ?? 0;
+
+    const status =
+      raw?.status === 'active' || raw?.status === 'depleted'
+        ? raw.status
+        : remainingGrams > 0
+          ? 'active'
+          : 'depleted';
+
+    return {
+      id: d.id,
+      ...raw,
+      totalGrams,
+      remainingGrams,
+      status,
+    };
+  });
 }
 
 export async function incrementPurchaseGrams(uid: string, purchaseId: string, addGrams: number) {
@@ -665,9 +697,12 @@ export async function incrementPurchaseGrams(uid: string, purchaseId: string, ad
     if (!snap.exists()) throw new Error('Purchase not found');
     const p = snap.data() as any;
 
-    const snappedAdd = snapPurchaseGrams(Number(addGrams || 0));
-    const totalGrams = Number((p.totalGrams + snappedAdd).toFixed(2));
-    const remainingGrams = Number((p.remainingGrams + snappedAdd).toFixed(2));
+    const rawAdd = typeof addGrams === 'number' ? addGrams : Number(addGrams);
+    if (!Number.isFinite(rawAdd) || rawAdd <= 0) throw new Error('Invalid add grams amount');
+
+    const snappedAdd = snapPurchaseGrams(rawAdd);
+    const totalGrams = Number(((parseWeightToNumber(p.totalGrams) ?? 0) + snappedAdd).toFixed(2));
+    const remainingGrams = Number(((parseWeightToNumber(p.remainingGrams) ?? 0) + snappedAdd).toFixed(2));
 
     tx.update(ref, {
       totalGrams,
@@ -688,34 +723,103 @@ export async function createEntryWithPurchaseDeduction(
   }
 
   const grams = parseWeightToNumber((payload as any).weight ?? (payload as any).dose) ?? 0;
+  if (!Number.isFinite(grams) || grams <= 0) {
+    throw new Error('Session weight (grams) is required to deduct from a purchase.');
+  }
 
   return await runTransaction(db, async (tx) => {
     const pref = purchaseRef(uid, purchaseId);
     const psnap = await tx.get(pref);
     if (!psnap.exists()) throw new Error('Linked purchase not found');
+
     const p = psnap.data() as any;
 
-    const newRemaining = Number((p.remainingGrams - grams).toFixed(2));
-    if (newRemaining < -0.001) throw new Error('Not enough inventory in this purchase');
+    const pTotal = parseWeightToNumber(p.totalGrams) ?? 0;
+    const pRemaining = parseWeightToNumber(p.remainingGrams) ?? 0;
 
-    tx.update(pref, {
-      remainingGrams: Math.max(0, newRemaining),
-      status: newRemaining <= 0 ? 'depleted' : 'active',
-      updatedAt: now(),
-    });
+    const newRemainingRaw = Number((pRemaining - grams).toFixed(2));
+    if (newRemainingRaw < -0.001) throw new Error('Not enough inventory in this purchase');
 
-    const data = stripUndefined({
-      ...payload,
-      userId: uid,
-      time: isFiniteNumber((payload as any).time) ? (payload as any).time : now(),
-      createdAt: now(),
-      updatedAt: now(),
-      purchaseId,
-    });
+    const newRemaining = Math.max(0, newRemainingRaw);
+    const becameDepleted = newRemaining <= 0.000001;
 
-    const newEntryRef = doc(collection(db, 'users', uid, 'entries'));
-    tx.set(newEntryRef, data as any);
-    return newEntryRef.id;
+    const sessionRef = doc(collection(db, 'users', uid, 'entries'));
+    tx.set(
+      sessionRef,
+      stripUndefined({
+        ...payload,
+        userId: uid,
+        time: isFiniteNumber((payload as any).time) ? (payload as any).time : now(),
+        createdAt: now(),
+        updatedAt: now(),
+        purchaseId,
+      }) as any
+    );
+
+    if (!becameDepleted) {
+      tx.update(pref, {
+        remainingGrams: newRemaining,
+        status: 'active',
+        updatedAt: now(),
+      });
+      return sessionRef.id;
+    }
+
+    const nowMs = now();
+    const purchaseFinishedDateISO = new Date(nowMs).toISOString().slice(0, 10);
+    const purchaseMadeDateISO: string | null = p?.purchaseDate ?? null;
+
+    const wasteGrams = newRemaining > 0 ? newRemaining : 0;
+    const wastePercent =
+      pTotal > 0 && wasteGrams > 0 ? Math.max(0, Math.min(100, (wasteGrams / pTotal) * 100)) : null;
+
+    const archiveRef = doc(collection(db, 'users', uid, 'entries'));
+    tx.set(
+      archiveRef,
+      stripUndefined({
+        userId: uid,
+        time: nowMs,
+        method: 'Purchase',
+        journalType: 'purchase-archive',
+        isPurchaseArchive: true,
+        hiddenFromDaily: true,
+
+        purchaseMadeDateISO,
+        purchaseFinishedDateISO,
+        purchaseFinishedAtMs: nowMs,
+
+        strainName: p.strainName || 'Untitled',
+        strainNameLower: (p.strainName || 'Untitled').toLowerCase(),
+        strainType: p.strainType || 'Hybrid',
+        brand: p.brand || undefined,
+        brandLower: p.brand ? p.brand.toLowerCase() : undefined,
+        lineage: p.lineage || undefined,
+        thcPercent: typeof p.thcPercent === 'number' ? p.thcPercent : undefined,
+        thcaPercent: typeof p.thcaPercent === 'number' ? p.thcaPercent : undefined,
+
+        purchaseId: pref.id,
+        purchaseSnapshot: stripUndefined({
+          totalGrams: pTotal,
+          remainingGrams: newRemaining,
+          totalCostCents: p.totalCostCents ?? 0,
+          purchaseDate: purchaseMadeDateISO,
+        }),
+
+        ...(wasteGrams > 0
+          ? {
+              wasteGrams,
+              wastePercent: typeof wastePercent === 'number' ? Math.round(wastePercent * 100) / 100 : undefined,
+            }
+          : {}),
+
+        createdAt: nowMs,
+        updatedAt: nowMs,
+      }) as any
+    );
+
+    tx.delete(pref);
+
+    return sessionRef.id;
   });
 }
 
@@ -731,13 +835,12 @@ export async function findPurchaseForStrain(
   if (snap.empty) return undefined;
 
   const rows = snap.docs
-    .map(d => ({ id: d.id, ...(d.data() as any) }))
-    .filter((p: any) => (p?.remainingGrams ?? 0) > 0)
+    .map((d) => ({ id: d.id, ...(d.data() as any) }))
+    .filter((p: any) => (parseWeightToNumber(p?.remainingGrams) ?? 0) > 0)
     .sort((a: any, b: any) => (b?.updatedAt ?? 0) - (a?.updatedAt ?? 0));
 
   return rows.length ? { id: rows[0].id } : undefined;
 }
-
 
 export async function createEntryAutoDeduct(
   uid: string,
@@ -802,7 +905,6 @@ export async function finishAndArchivePurchase(
           totalCostCents: p.totalCostCents ?? 0,
           purchaseDate: purchaseMadeDateISO,
         },
-
         createdAt: nowMs,
         updatedAt: nowMs,
       }) as any
@@ -825,7 +927,8 @@ export async function listEntriesForStrain(
 ): Promise<Entry[]> {
   const entriesRef = entriesCol(uid);
   const qLower = query(entriesRef, where('strainNameLower', '==', strainNameLower));
-  const qName  = displayName ? query(entriesRef, where('strainName', '==', displayName)) : null;
+  const qName = displayName ? query(entriesRef, where('strainName', '==', displayName)) : null;
+
   const [snapLower, snapName] = await Promise.all([
     getDocs(qLower),
     qName ? getDocs(qName) : Promise.resolve(null as any),
@@ -893,7 +996,7 @@ export async function listEntriesForStrain(
           if (needsStrainLower) patch.strainNameLower = toLower((e as any).strainName) || strainNameLower;
           if (needsBrandLower) patch.brandLower = toLower((e as any).brand);
           batch.update(ref, patch);
-          if (++touched >= 400) break; 
+          if (++touched >= 400) break;
         }
       }
 
@@ -901,33 +1004,29 @@ export async function listEntriesForStrain(
         await batch.commit();
       }
     }
-  } catch {
-  }
+  } catch {}
 
   return out;
 }
-
-
 
 export async function listActivePurchasesForStrain(uid: string, strainNameLower: string) {
   const qy = query(purchasesCol(uid), where('strainNameLower', '==', strainNameLower));
   const snap = await getDocs(qy);
 
-  const rows = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 
   return rows
-    .filter((p: any) => p?.status === 'active')
+    .filter((p: any) => (p?.status === 'active') && (parseWeightToNumber(p?.remainingGrams) ?? 0) > 0)
     .sort((a: any, b: any) => (b?.updatedAt ?? 0) - (a?.updatedAt ?? 0));
 }
 
 export const listCurrentPurchasesForStrain = listActivePurchasesForStrain;
 
-
 export async function listArchivedPurchasesForStrain(uid: string, strainNameLower: string) {
   const qy = query(entriesCol(uid), where('journalType', '==', 'purchase-archive'));
   const snap = await getDocs(qy);
 
-  const all = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+  const all = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 
   const mine = all.filter((e: any) => {
     const lower = (e?.strainNameLower ?? (e?.strainName || '')).toLowerCase();
@@ -942,9 +1041,9 @@ export async function listArchivedPurchasesForStrain(uid: string, strainNameLowe
   return mine.sort((a, b) => finishedMs(b) - finishedMs(a));
 }
 
-
 export async function getCultivatorRollups(uid: string, strainNameLower: string) {
   const rows = await listEntriesForStrain(uid, strainNameLower);
+
   type Row = {
     brand?: string;
     brandLower?: string;
@@ -972,7 +1071,6 @@ export async function getCultivatorRollups(uid: string, strainNameLower: string)
     const B = typeof b === 'number' ? b : 0;
     const v = Math.round((A + B) * 10) / 10;
     return Number.isInteger(v) ? Number(v.toFixed(0)) : Number(v.toFixed(1));
-
   };
 
   rows.forEach((r: Row) => {
@@ -1000,6 +1098,7 @@ export async function getCultivatorRollups(uid: string, strainNameLower: string)
       g.thcSum += sumPotency(r.thcPercent, r.thcaPercent);
       g.thcCount += 1;
     }
+
     byBrand.set(key, g);
   });
 
@@ -1011,6 +1110,5 @@ export async function getCultivatorRollups(uid: string, strainNameLower: string)
       avgRating: g.ratingCount ? Number((g.ratingSum / g.ratingCount).toFixed(2)) : null,
       avgPotency: g.thcCount ? Number((g.thcSum / g.thcCount).toFixed(1)) : null,
     }))
-    .sort((a, b) => (b.sessions - a.sessions) || (b.grams - a.grams));
+    .sort((a, b) => b.sessions - a.sessions || b.grams - a.grams);
 }
-

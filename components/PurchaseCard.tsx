@@ -36,12 +36,13 @@ type Props = {
 const G_PER_OZ = 28;
 
 function formatWeight(g: number) {
-  if (g >= G_PER_OZ) {
-    const oz = Math.floor(g / G_PER_OZ);
-    const rem = +(g % G_PER_OZ).toFixed(2);
+  const grams = Number(g || 0);
+  if (grams >= G_PER_OZ) {
+    const oz = Math.floor(grams / G_PER_OZ);
+    const rem = +(grams % G_PER_OZ).toFixed(2);
     return rem > 0 ? `${oz} oz + ${rem} g` : `${oz} oz`;
   }
-  return `${+g.toFixed(2)} g`;
+  return `${+grams.toFixed(2)} g`;
 }
 
 function centsToDollarString(cents?: number) {
@@ -76,20 +77,28 @@ function cleanUndefined<T extends Record<string, any>>(obj: T): T {
 
 export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
   const [busy, setBusy] = useState(false);
+  const total = Number(purchase.totalGrams ?? 0);
+  const remainingRaw = Number(purchase.remainingGrams ?? 0);
+  const isOneGramPurchase = Number.isFinite(total) && total > 0 && total <= 1.05;
+  const remainingDisplay = useMemo(() => {
+    if (!Number.isFinite(remainingRaw) || remainingRaw < 0) return isOneGramPurchase ? total : 0;
+    if (isOneGramPurchase && remainingRaw <= 0) return total;
+    return remainingRaw;
+  }, [remainingRaw, isOneGramPurchase, total]);
 
   const pct = useMemo(() => {
-    if (!purchase.totalGrams) return 0;
-    return Math.max(0, Math.min(100, (purchase.remainingGrams / purchase.totalGrams) * 100));
-  }, [purchase.totalGrams, purchase.remainingGrams]);
+    if (!Number.isFinite(total) || total <= 0) return 0;
+    const raw = (remainingDisplay / total) * 100;
+    return Math.max(0, Math.min(100, raw));
+  }, [total, remainingDisplay]);
 
   const pctRounded = useMemo(() => Math.round(pct), [pct]);
-
-  const isLow = purchase.remainingGrams < 1 || pct < 20;
-  const depleted = purchase.remainingGrams <= 0;
+  const isLow = !isOneGramPurchase && (remainingDisplay < 1 || pct < 20);
+  const depleted = !isOneGramPurchase && remainingDisplay <= 0;
 
   const unitPrice =
-    purchase.totalCostCents && purchase.totalGrams > 0
-      ? (purchase.totalCostCents / 100) / purchase.totalGrams
+    purchase.totalCostCents && Number.isFinite(total) && total > 0
+      ? (purchase.totalCostCents / 100) / total
       : undefined;
 
   const hasAnyPotency =
@@ -132,8 +141,8 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
 
       purchaseId: purchase.id,
       purchaseSnapshot: cleanUndefined({
-        totalGrams: purchase.totalGrams,
-        remainingGrams: purchase.remainingGrams,
+        totalGrams: total,
+        remainingGrams: remainingDisplay,
         totalCostCents: purchase.totalCostCents ?? 0,
         purchaseDate: purchase.purchaseDate || null,
       }),
@@ -170,16 +179,12 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
         if (!snap.exists()) throw new Error('Purchase not found');
         const p = snap.data() as any;
 
-        const total =
-          typeof p.totalGrams === 'number' ? p.totalGrams : purchase.totalGrams ?? 0;
-        const remaining =
-          typeof p.remainingGrams === 'number'
-            ? p.remainingGrams
-            : purchase.remainingGrams ?? 0;
+        const t = Number(typeof p.totalGrams === 'number' ? p.totalGrams : total) || 0;
+        const r = Number(typeof p.remainingGrams === 'number' ? p.remainingGrams : remainingRaw) || 0;
 
-        if (total > 0 && remaining > 0) {
-          wasteGrams = remaining;
-          wastePercent = Math.max(0, Math.min(100, (remaining / total) * 100));
+        if (t > 0 && r > 0) {
+          wasteGrams = r;
+          wastePercent = Math.max(0, Math.min(100, (r / t) * 100));
         }
 
         if ((p.remainingGrams ?? 0) > 0 || p.status !== 'depleted') {
@@ -201,8 +206,7 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
     }
   }
 
-  const hasWaste =
-    typeof purchase.wasteGrams === 'number' && purchase.wasteGrams > 0;
+  const hasWaste = typeof purchase.wasteGrams === 'number' && purchase.wasteGrams > 0;
 
   return (
     <div className={`card ${styles.card}`}>
@@ -212,6 +216,7 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
             <strong className={styles.name}>{purchase.strainName}</strong>
           </div>
           {purchase.brand && <div className={styles.brand}>{purchase.brand}</div>}
+          {purchase.lineage && <div className={styles.lineage}>Lineage: {purchase.lineage}</div>}
         </div>
 
         <div className={styles.right}>
@@ -223,14 +228,14 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
           )}
 
           <div className={styles.quantities}>
-            <div>Purchased: {formatWeight(purchase.totalGrams)}</div>
+            <div>Purchased: {formatWeight(total)}</div>
             <div>
-              Remaining: <strong>{formatWeight(purchase.remainingGrams)}</strong>
+              Remaining: <strong>{formatWeight(remainingDisplay)}</strong>
             </div>
           </div>
         </div>
       </div>
-          {purchase.lineage && <div className={styles.lineage}>Lineage: {purchase.lineage}</div>}
+
       <div className={styles.infoCenter}>
         {purchase.purchaseDate && (
           <div className={styles.infoRow}>
@@ -242,9 +247,7 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
         {purchase.totalCostCents != null && (
           <div className={styles.infoRow}>
             <span className={styles.infoLabel}>Spent :</span>
-            <span className={styles.valuePill}>
-              ${centsToDollarString(purchase.totalCostCents)}
-            </span>
+            <span className={styles.valuePill}>${centsToDollarString(purchase.totalCostCents)}</span>
           </div>
         )}
 
@@ -276,14 +279,9 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
       {hasWaste && (
         <div className={styles.wasteLine}>
           Waste:{' '}
-          <span className={styles.wasteValue}>
-            {purchase.wasteGrams!.toFixed(2)} g
-          </span>
+          <span className={styles.wasteValue}>{purchase.wasteGrams!.toFixed(2)} g</span>
           {typeof purchase.wastePercent === 'number' && (
-            <span className={styles.wastePercent}>
-              {' '}
-              ({purchase.wastePercent.toFixed(2)}%)
-            </span>
+            <span className={styles.wastePercent}> ({purchase.wastePercent.toFixed(2)}%)</span>
           )}
         </div>
       )}
