@@ -93,6 +93,29 @@ Training complete. First lightsaber constructed. Time to explore the galaxy (of 
 
 ## *** Updates
 
+## Major Update — Concentrates
+Date: March 8, 2026
+
+This update adds full support for concentrates throughout the application, including data modeling, session logging, and purchase tracking. It also includes a round of general UI and UX improvements.
+
+### Concentrate Support
+- Introduced Smokeable Type (Flower or Concentrate)
+- Added concentrate categories: Cured, Live Resin, Live Rosin
+- Concentrate forms dynamically update based on category selection
+- Method of consumption automatically adjusts for concentrate sessions
+- Purchases now store concentrate category and form data
+- Session logging correctly matches and deducts from the appropriate purchase
+
+### Purchase & Session Improvements
+- Improved linking between purchases and logged sessions
+- More accurate deduction logic based on product type
+- Better handling of depleted and archived purchases
+
+### UI & UX Improvements
+- Updated Purchase Card layout for clarity and consistency
+- Clearer display of product type, category, and form
+- General visual cleanup and usability refinements across forms
+
 ## 2025-11-16 — Purchases and Cultivar Updates
 
 - **Improved weight formatting system**

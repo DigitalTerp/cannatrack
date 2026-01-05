@@ -17,3 +17,10 @@
   top: 50%;
   transform: translateY(-50%);
 }
+
+@media (max-width: 640px) {
+  .back {
+    position: relative;
+    transform: translateX(20);
+  }
+}

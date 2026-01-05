@@ -5,16 +5,27 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { createEntry, listStrains, createEntryWithPurchaseDeduction } from '@/lib/firestore';
-import type { CreateEntryInput, Method, StrainType, Strain, EdibleType } from '@/lib/types';
+import type {
+  CreateEntryInput,
+  Method,
+  StrainType,
+  Strain,
+  EdibleType,
+  SmokeableKind,
+  ConcentrateCategory,
+  ConcentrateForm,
+} from '@/lib/types';
 import styles from './FormEntry.module.css';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, getDoc, query, where, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 function toDatetimeLocal(ms: number): string {
   const d = new Date(ms);
   if (isNaN(d.getTime())) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}`;
 }
 function fromDatetimeLocal(v: string): number | null {
   if (!v) return null;
@@ -26,7 +37,18 @@ const METHOD_OPTIONS: Method[] = ['Pre-Roll', 'Bong', 'Pipe', 'Vape', 'Dab'];
 const TYPE_OPTIONS: StrainType[] = ['Indica', 'Hybrid', 'Sativa'];
 const EDIBLE_TYPES: EdibleType[] = ['Gummy', 'Chocolate', 'Pill', 'Beverage'];
 
-/* ---------- helpers ---------- */
+const SMOKEABLE_KIND_OPTIONS: SmokeableKind[] = ['Flower', 'Concentrate'];
+const CONCENTRATE_CATEGORY_OPTIONS: ConcentrateCategory[] = ['Cured', 'Live Resin', 'Live Rosin'];
+const LIVE_RESIN_FORMS: ConcentrateForm[] = ['Badder', 'Sugar', 'Diamonds and Sauce'];
+const CURED_FORMS: ConcentrateForm[] = ['Badder', 'Sugar', 'Diamonds and Sauce', 'Crumble'];
+const LIVE_ROSIN_FORMS: ConcentrateForm[] = ['Hash Rosin', 'Temple Ball', 'Jam', 'Full Melt', 'Bubble Hash'];
+
+function getConcentrateFormOptions(cat: ConcentrateCategory): ConcentrateForm[] {
+  if (cat === 'Live Rosin') return LIVE_ROSIN_FORMS;
+  if (cat === 'Cured') return CURED_FORMS;
+  return LIVE_RESIN_FORMS;
+}
+
 const toNum = (s: string) => {
   if (!s || s.trim() === '') return undefined;
   const n = Number(s);
@@ -42,22 +64,95 @@ function niceName() {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
-async function findLatestEligiblePurchaseId(uid: string, strainName: string): Promise<string | null> {
+async function findLatestEligiblePurchaseId(
+  uid: string,
+  strainName: string,
+  opts?: {
+    smokeableKind?: SmokeableKind;
+    concentrateCategory?: ConcentrateCategory;
+    concentrateForm?: ConcentrateForm;
+  }
+): Promise<string | null> {
   if (!uid || !strainName) return null;
   const nameLower = strainName.trim().toLowerCase();
+
   try {
-    const qy = query(
-      collection(db, 'users', uid, 'purchases'),
-      where('strainNameLower', '==', nameLower)
-    );
+    const qy = query(collection(db, 'users', uid, 'purchases'), where('strainNameLower', '==', nameLower));
     const snap = await getDocs(qy);
     const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+
     const eligible = rows
       .filter((p) => (p?.status ?? 'active') === 'active' && Number(p?.remainingGrams ?? 0) > 0)
+      .filter((p) => {
+        const pk: SmokeableKind | undefined = p?.smokeableKind;
+        const pc: ConcentrateCategory | undefined = p?.concentrateCategory;
+        const pf: ConcentrateForm | undefined = p?.concentrateForm;
+
+        if (!opts?.smokeableKind) return true;
+
+        if (pk && pk !== opts.smokeableKind) return false;
+
+        if (opts.smokeableKind === 'Concentrate') {
+          if (opts.concentrateCategory && pc && pc !== opts.concentrateCategory) return false;
+          if (opts.concentrateForm && pf && pf !== opts.concentrateForm) return false;
+        }
+
+        return true;
+      })
       .sort((a, b) => Number(b?.updatedAt ?? 0) - Number(a?.updatedAt ?? 0));
+
     return eligible[0]?.id || null;
   } catch {
     return null;
+  }
+}
+
+/** Pull smokeableKind + concentrate details from the latest active purchase and apply to the form */
+async function prefillFromLatestPurchase(params: {
+  uid: string;
+  strainName: string;
+  apply: (v: {
+    smokeableKind?: SmokeableKind;
+    concentrateCategory?: ConcentrateCategory;
+    concentrateForm?: ConcentrateForm;
+  }) => void;
+}) {
+  const { uid, strainName, apply } = params;
+
+  const purchaseId = await findLatestEligiblePurchaseId(uid, strainName);
+  if (!purchaseId) return;
+
+  try {
+    const ref = doc(db, 'users', uid, 'purchases', purchaseId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+
+    const p = snap.data() as any;
+
+    // default to Flower when missing (older purchases)
+    const smokeableKind: SmokeableKind =
+      p?.smokeableKind === 'Concentrate' ? 'Concentrate' : 'Flower';
+
+    let concentrateCategory: ConcentrateCategory | undefined = undefined;
+    let concentrateForm: ConcentrateForm | undefined = undefined;
+
+    if (smokeableKind === 'Concentrate') {
+      const catRaw = p?.concentrateCategory;
+      const cat: ConcentrateCategory = CONCENTRATE_CATEGORY_OPTIONS.includes(catRaw)
+        ? catRaw
+        : 'Live Resin';
+
+      const allowedForms = getConcentrateFormOptions(cat);
+      const formRaw = p?.concentrateForm;
+      const form: ConcentrateForm = allowedForms.includes(formRaw) ? formRaw : allowedForms[0];
+
+      concentrateCategory = cat;
+      concentrateForm = form;
+    }
+
+    apply({ smokeableKind, concentrateCategory, concentrateForm });
+  } catch {
+    // non-fatal
   }
 }
 
@@ -137,7 +232,9 @@ export default function AddEntryForm() {
       setStrains(list);
     } catch {}
   }, [uid]);
-  useEffect(() => { loadStrains(); }, [loadStrains]);
+  useEffect(() => {
+    loadStrains();
+  }, [loadStrains]);
 
   const [pastEdibles, setPastEdibles] = useState<PastEdible[]>([]);
   const [selectedEdibleKey, setSelectedEdibleKey] = useState<string>('');
@@ -161,7 +258,7 @@ export default function AddEntryForm() {
   const [thcPercent, setThcPercent] = useState('');
   const [thcaPercent, setThcaPercent] = useState('');
   const [method, setMethod] = useState<Method>('Pre-Roll');
-  const [weight, setWeight] = useState(''); // grams
+  const [weight, setWeight] = useState('');
   const [effects, setEffects] = useState('');
   const [aroma, setAroma] = useState('');
   const [flavors, setFlavors] = useState('');
@@ -169,26 +266,70 @@ export default function AddEntryForm() {
 
   const [edibleName, setEdibleName] = useState('');
   const [edibleType, setEdibleType] = useState<EdibleType>('Gummy');
-  const [thcMg, setThcMg] = useState(''); 
+  const [thcMg, setThcMg] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  function handlePickStrain(id: string) {
+  // smokeable fields
+  const [smokeableKind, setSmokeableKind] = useState<SmokeableKind>('Flower');
+  const [concentrateCategory, setConcentrateCategory] = useState<ConcentrateCategory>('Live Resin');
+  const [concentrateForm, setConcentrateForm] = useState<ConcentrateForm>('Badder');
+
+  // Keep concentrate form valid when category changes
+  useEffect(() => {
+    const allowed = getConcentrateFormOptions(concentrateCategory);
+    if (!allowed.includes(concentrateForm)) setConcentrateForm(allowed[0]);
+  }, [concentrateCategory, concentrateForm]);
+
+  // Nudge method based on smokeable kind
+  useEffect(() => {
+    if (sessionType !== 'smokeable') return;
+    if (smokeableKind === 'Concentrate') {
+      if (method !== 'Dab') setMethod('Dab');
+    } else {
+      if (method === 'Dab') setMethod('Pre-Roll');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [smokeableKind, sessionType]);
+
+  async function handlePickStrain(id: string) {
     setSelectedStrainId(id);
     if (!id) return;
+
     const s = strains.find((x) => x.id === id);
     if (!s) return;
-    setStrainName(s.name || '');
+
+    // 1) Prefill from STRAIN LIBRARY (what you already had)
+    const nextName = s.name || '';
+    setStrainName(nextName);
     setStrainType((s.type as StrainType) || 'Hybrid');
     setBrand(s.brand || '');
     setLineage(s.lineage || '');
-    setThcPercent(
-      typeof s.thcPercent === 'number' && Number.isFinite(s.thcPercent) ? String(s.thcPercent) : ''
-    );
-    setThcaPercent(
-      typeof s.thcaPercent === 'number' && Number.isFinite(s.thcaPercent) ? String(s.thcaPercent) : ''
-    );
+    setThcPercent(typeof s.thcPercent === 'number' && Number.isFinite(s.thcPercent) ? String(s.thcPercent) : '');
+    setThcaPercent(typeof s.thcaPercent === 'number' && Number.isFinite(s.thcaPercent) ? String(s.thcaPercent) : '');
+
+    // 2) Prefill from LATEST ACTIVE PURCHASE for this strain (this is the missing piece)
+    if (uid && nextName) {
+      await prefillFromLatestPurchase({
+        uid,
+        strainName: nextName,
+        apply: ({ smokeableKind, concentrateCategory, concentrateForm }) => {
+          if (smokeableKind) setSmokeableKind(smokeableKind);
+
+          if (smokeableKind === 'Concentrate') {
+            if (concentrateCategory) setConcentrateCategory(concentrateCategory);
+            if (concentrateForm) setConcentrateForm(concentrateForm);
+            // also nudge method
+            setMethod('Dab');
+          } else if (smokeableKind === 'Flower') {
+            // (optional) reset concentrate fields for cleaner UX
+            setConcentrateCategory('Live Resin');
+            setConcentrateForm('Badder');
+          }
+        },
+      });
+    }
   }
 
   function handlePickEdible(key: string) {
@@ -273,16 +414,26 @@ export default function AddEntryForm() {
 
       rating: toNum(rating),
       notes: notes.trim() || undefined,
-    } as CreateEntryInput;
+
+      smokeableKind,
+      concentrateCategory: smokeableKind === 'Concentrate' ? concentrateCategory : undefined,
+      concentrateForm: smokeableKind === 'Concentrate' ? concentrateForm : undefined,
+    } as any;
 
     try {
       setSubmitting(true);
-      const w = payload.weight ?? 0;
-      const name = payload.strainName?.trim();
+
+      const w = (payload as any).weight ?? 0;
+      const name = (payload as any).strainName?.trim();
       let usedDeduct = false;
 
       if (name && w && w > 0) {
-        const purchaseId = await findLatestEligiblePurchaseId(uid, name);
+        const purchaseId = await findLatestEligiblePurchaseId(uid, name, {
+          smokeableKind,
+          concentrateCategory: smokeableKind === 'Concentrate' ? concentrateCategory : undefined,
+          concentrateForm: smokeableKind === 'Concentrate' ? concentrateForm : undefined,
+        });
+
         if (purchaseId) {
           await createEntryWithPurchaseDeduction(uid, purchaseId, payload as any);
           usedDeduct = true;
@@ -290,7 +441,7 @@ export default function AddEntryForm() {
       }
 
       if (!usedDeduct) {
-        await createEntry(uid, payload);
+        await createEntry(uid, payload as any);
       }
 
       router.push('/tracker');
@@ -334,30 +485,8 @@ export default function AddEntryForm() {
           onChange={(e) => setTimeLocal(e.target.value)}
           required
         />
-        <div className={styles.help}>Auto-filled to current date and time — adjust if needed.</div>
+        <div className={styles.help}>Auto-filled to current date and time — <i>adjust if needed.</i></div>
       </div>
-
-      {sessionType === 'smokeable' && strains.length > 0 && (
-        <div className={styles.field}>
-          <label htmlFor="prev-cultivar">Previous Cultivars (optional)</label>
-          <select
-            id="prev-cultivar"
-            className="input"
-            value={selectedStrainId}
-            onChange={(e) => handlePickStrain(e.target.value)}
-          >
-            <option value="">— New Cultivar —</option>
-            {strains.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}{s.brand ? ` : ${s.brand}` : ''} ({s.type})
-              </option>
-            ))}
-          </select>
-          <div className={styles.help}>
-            Selecting one just pre-fills the fields. Each session is still saved separately.
-          </div>
-        </div>
-      )}
 
       {sessionType === 'edible' && pastEdibles.length > 0 && (
         <div className={styles.field}>
@@ -372,19 +501,102 @@ export default function AddEntryForm() {
             {pastEdibles.map((p) => (
               <option key={p.key} value={p.key}>
                 {p.edibleName}
-                {p.brand ? ` : ${p.brand}` : ''} •
-                {p.mg != null ? ` ${p.mg} mg` : ''}{p.edibleType ? ` (${p.edibleType})` : ''} — {p.strainType}
+                {p.brand ? ` : ${p.brand}` : ''} •{p.mg != null ? ` ${p.mg} mg` : ''}
+                {p.edibleType ? ` (${p.edibleType})` : ''} — {p.strainType}
               </option>
             ))}
           </select>
-          <div className={styles.help}>
-            Selecting one pre-fills the edible fields. You can still tweak anything before saving.
-          </div>
+          <div className={styles.help}>Selecting one pre-fills the edible fields. You can still tweak anything before saving.</div>
+        </div>
+      )}
+
+      {strains.length > 0 && (
+        <div className={styles.field}>
+          <label htmlFor="prev-cultivar">Current Cultivars ( <i>Select One</i> )</label>
+          <select
+            id="prev-cultivar"
+            className="input"
+            value={selectedStrainId}
+            onChange={(e) => handlePickStrain(e.target.value)}
+          >
+            <option value="">— New Cultivar —</option>
+            {strains.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+                {s.brand ? ` : ${s.brand}` : ''} ({s.type})
+              </option>
+            ))}
+          </select>
+          <div className={styles.help}>Selecting one pre-fills the fields. Each session is still saved separately.</div>
         </div>
       )}
 
       {sessionType === 'smokeable' && (
         <>
+          <div className={`${styles.gridTwo} ${styles.section}`}>
+            <div>
+              <label htmlFor="smokeableKind">Smokeable Type</label>
+              <select
+                id="smokeableKind"
+                className="input"
+                value={smokeableKind}
+                onChange={(e) => setSmokeableKind(e.target.value as SmokeableKind)}
+              >
+                {SMOKEABLE_KIND_OPTIONS.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+              <div className={styles.help}>Choose Flower or Concentrate.</div>
+            </div>
+
+            {smokeableKind === 'Concentrate' ? (
+              <div>
+                <label htmlFor="concentrateCategory">Concentrate Category</label>
+                <select
+                  id="concentrateCategory"
+                  className="input"
+                  value={concentrateCategory}
+                  onChange={(e) => setConcentrateCategory(e.target.value as ConcentrateCategory)}
+                >
+                  {CONCENTRATE_CATEGORY_OPTIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <div className={styles.help}>Cured, Live Resin, or Live Rosin.</div>
+              </div>
+            ) : (
+              <div />
+            )}
+          </div>
+
+          {smokeableKind === 'Concentrate' && (
+            <div className={`${styles.gridTwo} ${styles.section}`}>
+              <div>
+                <label htmlFor="concentrateForm">Concentrate Form</label>
+                <select
+                  id="concentrateForm"
+                  className="input"
+                  value={concentrateForm}
+                  onChange={(e) => setConcentrateForm(e.target.value as ConcentrateForm)}
+                >
+                  {getConcentrateFormOptions(concentrateCategory).map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+
+                <div className={styles.help}>Sugar / Badder / Crumble / Diamonds &amp; Sauce.</div><br />
+              </div>
+              <div />
+            </div>
+          )}
+
+          {/* rest of your form stays the same */}
           <div className={styles.gridTwo}>
             <div>
               <label htmlFor="strainName">Cultivar Name</label>
@@ -407,7 +619,9 @@ export default function AddEntryForm() {
                 onChange={(e) => setStrainType(e.target.value as StrainType)}
               >
                 {TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
@@ -435,20 +649,6 @@ export default function AddEntryForm() {
             </div>
 
             <div>
-              <label htmlFor="thcPercent">THC %</label>
-              <input
-                id="thcPercent"
-                className="input"
-                type="number"
-                step="0.1"
-                inputMode="decimal"
-                placeholder="e.g., 22"
-                value={thcPercent}
-                onChange={(e) => setThcPercent(e.target.value)}
-              />
-            </div>
-
-            <div>
               <label htmlFor="thcaPercent">THCA %</label>
               <input
                 id="thcaPercent"
@@ -459,6 +659,20 @@ export default function AddEntryForm() {
                 placeholder="e.g., 30"
                 value={thcaPercent}
                 onChange={(e) => setThcaPercent(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="thcPercent">THC %</label>
+              <input
+                id="thcPercent"
+                className="input"
+                type="number"
+                step="0.1"
+                inputMode="decimal"
+                placeholder="e.g., 22"
+                value={thcPercent}
+                onChange={(e) => setThcPercent(e.target.value)}
               />
             </div>
           </div>
@@ -474,9 +688,14 @@ export default function AddEntryForm() {
                 required
               >
                 {METHOD_OPTIONS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
                 ))}
               </select>
+              {smokeableKind === 'Concentrate' && (
+                <div className={styles.help}>Tip: “Dab” is usually right for concentrates.</div>
+              )}
             </div>
 
             <div>
@@ -487,7 +706,7 @@ export default function AddEntryForm() {
                 type="number"
                 inputMode="decimal"
                 step="0.01"
-                placeholder="e.g., 0.35"
+                placeholder={smokeableKind === 'Concentrate' ? 'e.g., 0.10' : 'e.g., 0.35'}
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
               />
@@ -571,7 +790,9 @@ export default function AddEntryForm() {
                 onChange={(e) => setStrainType(e.target.value as StrainType)}
               >
                 {TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
@@ -596,7 +817,9 @@ export default function AddEntryForm() {
                 onChange={(e) => setEdibleType(e.target.value as EdibleType)}
               >
                 {EDIBLE_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
@@ -615,6 +838,8 @@ export default function AddEntryForm() {
                 required
               />
             </div>
+
+            <div />
           </div>
         </>
       )}
@@ -636,6 +861,8 @@ export default function AddEntryForm() {
         <button className={`btn btn-primary ${styles.btnWide}`} type="submit" disabled={submitting}>
           {submitting ? 'Saving…' : 'Save Session'}
         </button>
+        </div>
+        <div className={styles.actions}>
         <button
           className={`btn btn-ghost ${styles.btnWide}`}
           type="button"

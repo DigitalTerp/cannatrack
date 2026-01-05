@@ -10,6 +10,18 @@ import EditPurchaseForm from '@/components/EditPurchaseForm';
 import styles from '../../new/NewPurchasePage.module.css';
 
 type StrainType = 'Indica' | 'Sativa' | 'Hybrid';
+type SmokeableKind = 'Flower' | 'Concentrate';
+type ConcentrateCategory = 'Cured' | 'Live Resin' | 'Live Rosin';
+type ConcentrateForm =
+  | 'Badder'
+  | 'Sugar'
+  | 'Diamonds and Sauce'
+  | 'Crumble'
+  | 'Hash Rosin'
+  | 'Temple Ball'
+  | 'Jam'
+  | 'Full Melt'
+  | 'Bubble Hash';
 
 type PurchaseDoc = {
   strainName: string;
@@ -18,13 +30,20 @@ type PurchaseDoc = {
   brand?: string;
   thcPercent?: number | null;
   thcaPercent?: number | null;
+
   totalGrams: number;
   remainingGrams: number;
   totalCostCents?: number | null;
+
   purchaseDate?: string;
   batchId?: string | null;
+
   status?: 'active' | 'depleted';
   updatedAt?: number;
+
+  smokeableKind?: SmokeableKind;
+  concentrateCategory?: ConcentrateCategory;
+  concentrateForm?: ConcentrateForm;
 };
 
 export default function EditPurchasePage() {
@@ -36,7 +55,6 @@ export default function EditPurchasePage() {
   const [err, setErr] = useState<string | null>(null);
   const [purchase, setPurchase] = useState<PurchaseDoc | null>(null);
 
-  // Auth -> uid
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) {
@@ -48,7 +66,7 @@ export default function EditPurchasePage() {
     return () => unsub();
   }, [router, id]);
 
-  // Fetch purchase by id
+
   useEffect(() => {
     if (!uid || !id) return;
     let cancelled = false;
@@ -58,6 +76,7 @@ export default function EditPurchasePage() {
         setLoading(true);
         const ref = doc(db, 'users', uid, 'purchases', id);
         const snap = await getDoc(ref);
+
         if (!snap.exists()) {
           if (!cancelled) {
             setErr('Purchase not found.');
@@ -65,7 +84,9 @@ export default function EditPurchasePage() {
           }
           return;
         }
+
         const raw = snap.data() as PurchaseDoc;
+
         if (!cancelled) {
           setPurchase(raw);
           setErr(null);
@@ -94,6 +115,10 @@ export default function EditPurchasePage() {
       dollars: '',
       purchaseDateISO: new Date().toISOString().slice(0, 10),
       batchId: '',
+
+      smokeableKind: 'Flower' as SmokeableKind,
+      concentrateCategory: 'Live Resin' as ConcentrateCategory,
+      concentrateForm: 'Badder' as ConcentrateForm,
     };
 
     if (!purchase) return defaults;
@@ -108,15 +133,16 @@ export default function EditPurchasePage() {
       strainType: purchase.strainType || 'Hybrid',
       lineage: purchase.lineage || '',
       brand: purchase.brand || '',
-      thcPercent:
-        typeof purchase.thcPercent === 'number' ? String(purchase.thcPercent) : '',
-      thcaPercent:
-        typeof purchase.thcaPercent === 'number' ? String(purchase.thcaPercent) : '',
-      grams:
-        typeof purchase.totalGrams === 'number' ? String(purchase.totalGrams) : '',
+      thcPercent: typeof purchase.thcPercent === 'number' ? String(purchase.thcPercent) : '',
+      thcaPercent: typeof purchase.thcaPercent === 'number' ? String(purchase.thcaPercent) : '',
+      grams: typeof purchase.totalGrams === 'number' ? String(purchase.totalGrams) : '',
       dollars,
       purchaseDateISO: purchase.purchaseDate || defaults.purchaseDateISO,
       batchId: purchase.batchId || '',
+
+      smokeableKind: purchase.smokeableKind || defaults.smokeableKind,
+      concentrateCategory: purchase.concentrateCategory || defaults.concentrateCategory,
+      concentrateForm: purchase.concentrateForm || defaults.concentrateForm,
     };
   }, [purchase]);
 
@@ -130,13 +156,24 @@ export default function EditPurchasePage() {
       </header>
 
       {loading ? (
-        <div className="card"><div className="subtle">Loading purchase…</div></div>
+        <div className="card">
+          <div className="subtle">Loading purchase…</div>
+        </div>
       ) : err ? (
-        <div className="card"><p className="error" style={{ margin: 0 }}>{err}</p></div>
+        <div className="card">
+          <p className="error" style={{ margin: 0 }}>
+            {err}
+          </p>
+        </div>
       ) : !uid || !id ? (
-        <div className="card"><p className="error" style={{ margin: 0 }}>Missing user or purchase ID.</p></div>
+        <div className="card">
+          <p className="error" style={{ margin: 0 }}>
+            Missing user or purchase ID.
+          </p>
+        </div>
       ) : (
         <EditPurchaseForm
+          key={`${id}-${purchase?.updatedAt ?? 'loaded'}`}
           uid={uid}
           purchaseId={id}
           initialValues={initialValues}

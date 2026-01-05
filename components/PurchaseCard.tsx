@@ -7,6 +7,18 @@ import { db } from '@/lib/firebase';
 import styles from './PurchaseCard.module.css';
 
 type StrainType = 'Indica' | 'Sativa' | 'Hybrid';
+type SmokeableKind = 'Flower' | 'Concentrate';
+type ConcentrateCategory = 'Cured' | 'Live Resin' | 'Live Rosin';
+type ConcentrateForm =
+  | 'Badder'
+  | 'Sugar'
+  | 'Diamonds and Sauce'
+  | 'Crumble'
+  | 'Hash Rosin'
+  | 'Temple Ball'
+  | 'Jam'
+  | 'Full Melt'
+  | 'Bubble Hash';
 
 type Purchase = {
   id: string;
@@ -24,6 +36,10 @@ type Purchase = {
   updatedAt?: number;
   wasteGrams?: number;
   wastePercent?: number;
+
+  smokeableKind?: SmokeableKind;
+  concentrateCategory?: ConcentrateCategory;
+  concentrateForm?: ConcentrateForm;
 };
 
 type Props = {
@@ -75,11 +91,35 @@ function cleanUndefined<T extends Record<string, any>>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
 }
 
+function buildProductTypeParts(p: Purchase): {
+  kind: SmokeableKind;
+  label: string;
+  detail?: string;
+} {
+  const kind = p.smokeableKind || 'Flower';
+
+  if (kind === 'Flower') {
+    return { kind, label: 'Flower' };
+  }
+
+  const details: string[] = [];
+  if (p.concentrateCategory) details.push(p.concentrateCategory);
+  if (p.concentrateForm) details.push(p.concentrateForm);
+
+  return {
+    kind,
+    label: 'Concentrate',
+    detail: details.length ? details.join(' • ') : undefined,
+  };
+}
+
 export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
   const [busy, setBusy] = useState(false);
+
   const total = Number(purchase.totalGrams ?? 0);
   const remainingRaw = Number(purchase.remainingGrams ?? 0);
   const isOneGramPurchase = Number.isFinite(total) && total > 0 && total <= 1.05;
+
   const remainingDisplay = useMemo(() => {
     if (!Number.isFinite(remainingRaw) || remainingRaw < 0) return isOneGramPurchase ? total : 0;
     if (isOneGramPurchase && remainingRaw <= 0) return total;
@@ -104,6 +144,8 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
   const hasAnyPotency =
     typeof purchase.thcPercent === 'number' || typeof purchase.thcaPercent === 'number';
   const totalPotency = hasAnyPotency ? sumPotency(purchase.thcPercent, purchase.thcaPercent) : null;
+
+  const productType = buildProductTypeParts(purchase);
 
   async function logArchiveEntry(
     finishedDateISO: string,
@@ -139,22 +181,32 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
       ...(typeof purchase.thcPercent === 'number' ? { thcPercent: purchase.thcPercent } : {}),
       ...(typeof purchase.thcaPercent === 'number' ? { thcaPercent: purchase.thcaPercent } : {}),
 
+      smokeableKind: purchase.smokeableKind || 'Flower',
+      ...(purchase.smokeableKind === 'Concentrate'
+        ? {
+            concentrateCategory: purchase.concentrateCategory,
+            concentrateForm: purchase.concentrateForm,
+          }
+        : {}),
+
       purchaseId: purchase.id,
       purchaseSnapshot: cleanUndefined({
         totalGrams: total,
         remainingGrams: remainingDisplay,
         totalCostCents: purchase.totalCostCents ?? 0,
         purchaseDate: purchase.purchaseDate || null,
+        smokeableKind: purchase.smokeableKind || 'Flower',
+        ...(purchase.smokeableKind === 'Concentrate'
+          ? {
+              concentrateCategory: purchase.concentrateCategory,
+              concentrateForm: purchase.concentrateForm,
+            }
+          : {}),
       }),
 
       ...(typeof wasteGrams === 'number' && wasteGrams > 0
-        ? {
-            wasteGrams,
-            wastePercent: roundedWastePercent,
-          }
+        ? { wasteGrams, wastePercent: roundedWastePercent }
         : {}),
-
-      notes: undefined,
 
       createdAt: nowMs,
       updatedAt: nowMs,
@@ -210,22 +262,37 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
 
   return (
     <div className={`card ${styles.card}`}>
+      <div className={styles.headerBlock}>
+        <div className={styles.titleCenter}>{purchase.strainName}</div>
+         {purchase.lineage && <div className={styles.lineageCenter}>Lineage: {purchase.lineage}</div>}
+
+        <div className={styles.productTypeWrap}>
+          <span
+            className={`${styles.productTypeBadge} ${
+              productType.kind === 'Flower' ? styles.badgeFlower : styles.badgeConcentrate
+            }`}
+          >
+            {productType.kind === 'Flower' ? '🌿' : '🍯'} {productType.label}
+          </span>
+          </div>  
+          <div> {productType.detail && <span className={styles.productTypeDetail}>{productType.detail}</span>}
+        </div>
+      </div>
+
       <div className={styles.row}>
         <div className={styles.left}>
-          <div className={styles.nameLine}>
-            <strong className={styles.name}>{purchase.strainName}</strong>
-          </div>
-          {purchase.brand && <div className={styles.brand}>{purchase.brand}</div>}
-          {purchase.lineage && <div className={styles.lineage}>Lineage: {purchase.lineage}</div>}
+          {purchase.brand && <div className={styles.brand}>Cultivator: {purchase.brand}</div>}
         </div>
 
         <div className={styles.right}>
-          {!depleted && isLow && (
-            <span className={`${styles.stateBadge} ${styles.badgeLow}`}>LOW AMOUNT</span>
-          )}
-          {depleted && (
-            <span className={`${styles.stateBadge} ${styles.badgeDepleted}`}>Depleted</span>
-          )}
+          <div className={styles.badges}>
+            {!depleted && isLow && (
+              <span className={`${styles.stateBadge} ${styles.badgeLow}`}>LOW AMOUNT</span>
+            )}
+            {depleted && (
+              <span className={`${styles.stateBadge} ${styles.badgeDepleted}`}>Depleted</span>
+            )}
+          </div>
 
           <div className={styles.quantities}>
             <div>Purchased: {formatWeight(total)}</div>
@@ -266,6 +333,7 @@ export default function PurchaseCard({ uid, purchase, onChanged }: Props) {
         )}
       </div>
 
+      {/* PROGRESS */}
       <div className={styles.progressBlock}>
         <div className={styles.progressHeader}>
           <span className={styles.progressLabel}>Remaining</span>

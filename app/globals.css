@@ -205,11 +205,10 @@ textarea.input { min-height: 120px; }
 @media (prefers-color-scheme: dark) { ::-webkit-scrollbar-thumb { background: #475569; } }
 
 /* ====== Hamburger & Drawer ====== */
-/* Hide hamburger on desktop; show only on mobile */
+
 .hamburger { display: none; }
 @media (max-width: 720px) { .hamburger { display: inline-flex; } }
 
-/* Mobile hamburger: NO background, white icon, larger tap area */
 .hamburger {
   width: 56px;
   height: 56px;
@@ -231,7 +230,6 @@ textarea.input { min-height: 120px; }
 .icon-hamburger.is-open .bar-mid { opacity: 0; }
 .icon-hamburger.is-open .bar-bot { transform: translateY(-5px) rotate(-45deg); }
 
-/* Use a dark/brand color on light, keep white on dark */
 .site-header .hamburger {
   color: #0f172a; 
 }
@@ -290,23 +288,18 @@ textarea.input { min-height: 120px; }
 /* ---------- History date + pager layout ---------- */
 .date-controls {
   display: grid;
-  gap: 0.5rem;            /* space between date row and pager row */
+  gap: 0.5rem;            
 }
 .date-row,
 .pager-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap;        /* keeps things tidy on small screens */
+  flex-wrap: wrap;        
 }
 
 .pager-row .btn { min-width: 120px; }
 
-/* ---------- Header-specific overrides ----------
-   Make header nav items link-style (no backgrounds) EXCEPT:
-   - Log Session: .btn-primary (green)
-   - Logout: .logout-btn (red)
--------------------------------------------------- */
 .site-nav a.btn:not(.btn-primary):not(.logout-btn),
 .header-right .btn:not(.btn-primary):not(.logout-btn) {
   background: transparent !important;

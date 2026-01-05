@@ -14,7 +14,14 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Entry, Strain, StrainType } from './types';
+import type {
+  Entry,
+  Strain,
+  StrainType,
+  SmokeableKind,
+  ConcentrateCategory,
+  ConcentrateForm,
+} from './types';
 
 const now = () => Date.now();
 const isFiniteNumber = (v: any): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -97,6 +104,106 @@ function normalizeStrainType(v: any): StrainType | undefined {
   return undefined;
 }
 
+/* -------------------- Smokeable / Concentrate Normalizers -------------------- */
+
+function normalizeSmokeableKind(v: any): SmokeableKind | undefined {
+  if (typeof v !== 'string') return undefined;
+  const s = v.trim().toLowerCase();
+  if (s === 'flower') return 'Flower';
+  if (s === 'concentrate' || s === 'concentrates') return 'Concentrate';
+  return undefined;
+}
+
+function normalizeConcentrateCategory(v: any): ConcentrateCategory | undefined {
+  if (typeof v !== 'string') return undefined;
+  const s = v.trim().toLowerCase();
+  if (!s) return undefined;
+  if (s === 'cured' || s.startsWith('cure')) return 'Cured';
+  if (s.includes('live') && s.includes('res')) return 'Live Resin';
+  if (s.includes('live') && s.includes('ros')) return 'Live Rosin';
+  return undefined;
+}
+
+function normalizeConcentrateForm(v: any): ConcentrateForm | undefined {
+  if (typeof v !== 'string') return undefined;
+  const s = v.trim().toLowerCase();
+  if (!s) return undefined;
+
+  if (s.startsWith('sug')) return 'Sugar';
+  if (s.startsWith('bad')) return 'Badder';
+  if (s.startsWith('cru')) return 'Crumble';
+  if (s.includes('diamond')) return 'Diamonds and Sauce';
+
+  if (s.includes('hash') && s.includes('ros')) return 'Hash Rosin';
+  if (s.includes('temple')) return 'Temple Ball';
+  if (s === 'jam' || s.includes('jam')) return 'Jam';
+  if (s.includes('full') && (s.includes('melt') || s.includes('metal'))) return 'Full Melt';
+  if (s.includes('bubble')) return 'Bubble Hash';
+
+  return undefined;
+}
+
+function coerceSmokeableKind(raw: any): SmokeableKind | undefined {
+  return (
+    normalizeSmokeableKind(raw?.smokeableKind) ||
+    normalizeSmokeableKind(raw?.productKind) ||
+    normalizeSmokeableKind(raw?.kind) ||
+    undefined
+  );
+}
+
+function coerceConcentrateCategory(raw: any): ConcentrateCategory | undefined {
+  return (
+    normalizeConcentrateCategory(raw?.concentrateCategory) ||
+    normalizeConcentrateCategory(raw?.extractCategory) ||
+    normalizeConcentrateCategory(raw?.concentrateType) ||
+    undefined
+  );
+}
+
+function coerceConcentrateForm(raw: any): ConcentrateForm | undefined {
+  return (
+    normalizeConcentrateForm(raw?.concentrateForm) ||
+    normalizeConcentrateForm(raw?.extractForm) ||
+    normalizeConcentrateForm(raw?.concentrateFormFactor) ||
+    undefined
+  );
+}
+
+const G_PER_OZ = 28;
+const STEP_EIGHTH = 3.5;
+const STEP_QUARTER = 7;
+
+function snapPurchaseGrams(g: number): number {
+  const grams = Math.max(0, Number(g));
+
+  if (grams > 0 && grams <= 1.01) return 1;
+
+  if (grams <= G_PER_OZ + 1e-9) {
+    const steps = Math.round(grams / STEP_EIGHTH);
+    const snapped = Number((steps * STEP_EIGHTH).toFixed(2));
+    return snapped > 0 ? snapped : STEP_EIGHTH;
+  }
+
+  const steps = Math.round(grams / STEP_QUARTER);
+  const snapped = Number((steps * STEP_QUARTER).toFixed(2));
+  return snapped > 0 ? snapped : STEP_QUARTER;
+}
+
+function snapConcentrateGrams(g: number): number {
+  const grams = Math.max(0, Number(g));
+  if (grams <= 0) return 0;
+
+  if (grams <= 5) {
+    const snapped = Math.round(grams * 2) / 2; 
+    return Number(snapped.toFixed(2));
+  }
+
+  return Number(Math.round(grams).toFixed(2));
+}
+
+/* --------------------------- Edibles --------------------------- */
+
 type EdibleCategory = 'Chocolate' | 'Gummy' | 'Pill' | 'Beverage' | 'Other';
 function normalizeEdibleCategory(v: any): EdibleCategory | undefined {
   if (typeof v !== 'string') return undefined;
@@ -119,6 +226,8 @@ function coerceEdibleCategory(raw: any): EdibleCategory | undefined {
   );
 }
 
+/* --------------------------- Firestore refs --------------------------- */
+
 const entriesCol = (uid: string) => collection(db, 'users', uid, 'entries');
 const strainsCol = (uid: string) => collection(db, 'users', uid, 'strains');
 const entryRef = (uid: string, entryId: string) => doc(db, 'users', uid, 'entries', entryId);
@@ -131,26 +240,6 @@ const toCents = (v: any): number | undefined => {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
   return Number.isFinite(n) ? Math.round(n * 100) : undefined;
 };
-
-const G_PER_OZ = 28;
-const STEP_EIGHTH = 3.5;
-const STEP_QUARTER = 7;
-
-function snapPurchaseGrams(g: number): number {
-  const grams = Math.max(0, Number(g));
-
-  if (grams > 0 && grams <= 1.01) return 1;
-
-  if (grams <= G_PER_OZ + 1e-9) {
-    const steps = Math.round(grams / STEP_EIGHTH);
-    const snapped = Number((steps * STEP_EIGHTH).toFixed(2));
-    return snapped > 0 ? snapped : STEP_EIGHTH;
-  }
-
-  const steps = Math.round(grams / STEP_QUARTER);
-  const snapped = Number((steps * STEP_QUARTER).toFixed(2));
-  return snapped > 0 ? snapped : STEP_QUARTER;
-}
 
 /* --------------------------- Cultivars ( Strains )--------------------------- */
 
@@ -283,6 +372,15 @@ export async function createEntry(
   const isEdible =
     methodStr.toLowerCase() === 'edible' || (payload as any).isEdibleSession === true;
 
+  const smokeableKind: SmokeableKind =
+    isEdible ? 'Flower' : (coerceSmokeableKind(payload as any) || 'Flower');
+
+  const concentrateCategory =
+    !isEdible && smokeableKind === 'Concentrate' ? coerceConcentrateCategory(payload as any) : undefined;
+
+  const concentrateForm =
+    !isEdible && smokeableKind === 'Concentrate' ? coerceConcentrateForm(payload as any) : undefined;
+
   const weight = !isEdible
     ? parseWeightToNumber((payload as any).weight ?? (payload as any).dose)
     : undefined;
@@ -335,6 +433,10 @@ export async function createEntry(
     time: isFiniteNumber((payload as any).time) ? (payload as any).time : now(),
     method: methodStr || (isEdible ? 'Edible' : (payload as any).method) || 'Pre-Roll',
 
+    smokeableKind: !isEdible ? smokeableKind : undefined,
+    concentrateCategory,
+    concentrateForm,
+
     strainId: !isEdible ? strainId || (payload as any).strainId || undefined : undefined,
     strainName: !isEdible ? strainNameRaw : undefined,
     strainNameLower: !isEdible && strainNameRaw ? strainNameRaw.toLowerCase() : undefined,
@@ -377,6 +479,23 @@ export async function updateEntry(uid: string, entryId: string, patch: Partial<E
     (patch as any).edibleType != null ||
     (patch as any).edibleKind != null;
 
+  // smokeable subtype only applies when not edible
+  const smokeableKind: SmokeableKind | undefined = !isEdiblePatch
+    ? (coerceSmokeableKind(patch as any) || undefined)
+    : undefined;
+
+  const concentrateCategory =
+    !isEdiblePatch &&
+    ((smokeableKind === 'Concentrate') || (patch as any).concentrateCategory != null)
+      ? coerceConcentrateCategory(patch as any)
+      : undefined;
+
+  const concentrateForm =
+    !isEdiblePatch &&
+    ((smokeableKind === 'Concentrate') || (patch as any).concentrateForm != null)
+      ? coerceConcentrateForm(patch as any)
+      : undefined;
+
   const weight = !isEdiblePatch
     ? parseWeightToNumber((patch as any).weight ?? (patch as any).dose)
     : undefined;
@@ -411,6 +530,12 @@ export async function updateEntry(uid: string, entryId: string, patch: Partial<E
   const norm = stripUndefined({
     ...patch,
     method: methodStr || (patch as any).method,
+
+    // smokeables
+    smokeableKind,
+    concentrateCategory,
+    concentrateForm,
+
     weight,
 
     strainName,
@@ -430,6 +555,7 @@ export async function updateEntry(uid: string, entryId: string, patch: Partial<E
     notes,
     updatedAt: now(),
 
+    // edibles
     isEdibleSession: isEdiblePatch ? true : (patch as any).isEdibleSession,
     edibleName,
     edibleType: edibleCategory,
@@ -493,6 +619,8 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
     const isEdible =
       raw?.isEdibleSession === true || String(raw?.method || '').toLowerCase() === 'edible';
 
+    const kind: SmokeableKind = normalizeSmokeableKind(raw?.smokeableKind) || 'Flower';
+
     const entry: Entry = {
       id: snap.id,
       userId: uid,
@@ -501,6 +629,14 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
 
       time: isFiniteNumber(raw?.time) ? raw.time : now(),
       method: raw?.method ?? 'Pre-Roll',
+
+      smokeableKind: !isEdible ? kind : undefined,
+      concentrateCategory: !isEdible && kind === 'Concentrate'
+        ? normalizeConcentrateCategory(raw?.concentrateCategory) ?? undefined
+        : undefined,
+      concentrateForm: !isEdible && kind === 'Concentrate'
+        ? normalizeConcentrateForm(raw?.concentrateForm) ?? undefined
+        : undefined,
 
       strainId: !isEdible ? raw?.strainId ?? undefined : undefined,
       strainName: !isEdible ? raw?.strainName ?? '' : '',
@@ -528,6 +664,11 @@ export async function getEntry(uid: string, entryId: string): Promise<Entry | nu
       aroma: Array.isArray(raw?.aroma) ? raw.aroma : undefined,
       rating: isFiniteNumber(raw?.rating) ? raw.rating : undefined,
       notes: raw?.notes ?? undefined,
+
+      purchaseId: raw?.purchaseId ?? undefined,
+      journalType: raw?.journalType ?? undefined,
+      isPurchaseArchive: raw?.isPurchaseArchive ?? undefined,
+      hiddenFromDaily: raw?.hiddenFromDaily ?? undefined,
     } as Entry;
 
     if (isEdible) {
@@ -616,6 +757,11 @@ export async function createPurchase(
     grams: number;
     dollars?: number;
     purchaseDateISO?: string;
+
+    // subtype
+    smokeableKind?: SmokeableKind;
+    concentrateCategory?: ConcentrateCategory;
+    concentrateForm?: ConcentrateForm;
   }
 ): Promise<string> {
   try {
@@ -629,6 +775,8 @@ export async function createPurchase(
     });
   } catch {}
 
+  const kind = normalizeSmokeableKind(input.smokeableKind) || 'Flower';
+
   const rawGrams =
     typeof input.grams === 'number' ? input.grams : parseWeightToNumber((input as any).grams);
 
@@ -636,10 +784,13 @@ export async function createPurchase(
     throw new Error(`Invalid grams value: ${String(input.grams)}`);
   }
 
-  const snappedGrams = snapPurchaseGrams(rawGrams);
+  const snappedGrams = kind === 'Concentrate' ? snapConcentrateGrams(rawGrams) : snapPurchaseGrams(rawGrams);
   if (!isFiniteNumber(snappedGrams) || snappedGrams <= 0) {
     throw new Error(`Weight snapping produced invalid value: ${String(snappedGrams)}`);
   }
+
+  const cc = kind === 'Concentrate' ? normalizeConcentrateCategory(input.concentrateCategory) : undefined;
+  const cf = kind === 'Concentrate' ? normalizeConcentrateForm(input.concentrateForm) : undefined;
 
   const docData = stripUndefined({
     strainName: input.strainName.trim(),
@@ -649,6 +800,10 @@ export async function createPurchase(
     brand: input.brand?.trim() || undefined,
     thcPercent: isFiniteNumber(input.thcPercent) ? input.thcPercent : undefined,
     thcaPercent: isFiniteNumber(input.thcaPercent) ? input.thcaPercent : undefined,
+
+    smokeableKind: kind,
+    concentrateCategory: cc,
+    concentrateForm: cf,
 
     totalGrams: snappedGrams,
     remainingGrams: snappedGrams,
@@ -662,6 +817,140 @@ export async function createPurchase(
 
   const res = await addDoc(purchasesCol(uid), docData as any);
   return res.id;
+}
+
+export async function updatePurchase(
+  uid: string,
+  purchaseId: string,
+  patch: {
+    strainName?: string;
+    strainType?: StrainType;
+    lineage?: string;
+    brand?: string;
+    thcPercent?: number;
+    thcaPercent?: number;
+    grams?: number; // total grams
+    dollars?: number; // dollars, not cents
+    purchaseDateISO?: string;
+
+    smokeableKind?: SmokeableKind;
+    concentrateCategory?: ConcentrateCategory;
+    concentrateForm?: ConcentrateForm;
+  }
+): Promise<void> {
+  if (!uid) throw new Error('updatePurchase: missing uid');
+  if (!purchaseId) throw new Error('updatePurchase: missing purchaseId');
+
+  await runTransaction(db, async (tx) => {
+    const ref = purchaseRef(uid, purchaseId);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('Purchase not found');
+    const current = snap.data() as any;
+
+    const nextStrainName =
+      typeof patch.strainName === 'string'
+        ? patch.strainName.trim()
+        : String(current?.strainName ?? '').trim();
+
+    if (!nextStrainName) throw new Error('Cultivar name is required.');
+
+    const nextKind: SmokeableKind =
+      normalizeSmokeableKind(patch.smokeableKind) ||
+      normalizeSmokeableKind(current?.smokeableKind) ||
+      'Flower';
+
+    const currentTotal = parseWeightToNumber(current?.totalGrams) ?? 0;
+    const currentRemaining = parseWeightToNumber(current?.remainingGrams) ?? 0;
+    const usedGrams = Math.max(0, Number((currentTotal - currentRemaining).toFixed(2)));
+
+    let nextTotal = currentTotal;
+
+    if (patch.grams !== undefined) {
+      const rawIncomingGrams = typeof patch.grams === 'number' ? patch.grams : Number(patch.grams);
+      if (!Number.isFinite(rawIncomingGrams) || rawIncomingGrams <= 0) {
+        throw new Error(`Invalid grams value: ${String(rawIncomingGrams)}`);
+      }
+
+      nextTotal =
+        nextKind === 'Concentrate'
+          ? snapConcentrateGrams(rawIncomingGrams)
+          : snapPurchaseGrams(rawIncomingGrams);
+
+      if (!Number.isFinite(nextTotal) || nextTotal <= 0) {
+        throw new Error(`Weight snapping produced invalid value: ${String(nextTotal)}`);
+      }
+    }
+
+    const nextRemaining = Math.max(0, Number((nextTotal - usedGrams).toFixed(2)));
+    const nextStatus = nextRemaining <= 0 ? 'depleted' : 'active';
+
+    const nextCC =
+      nextKind === 'Concentrate'
+        ? normalizeConcentrateCategory(patch.concentrateCategory ?? current?.concentrateCategory)
+        : undefined;
+
+    const nextCF =
+      nextKind === 'Concentrate'
+        ? normalizeConcentrateForm(patch.concentrateForm ?? current?.concentrateForm)
+        : undefined;
+
+    const nextType =
+      normalizeStrainType(patch.strainType ?? current?.strainType) || 'Hybrid';
+
+    const nextBrand =
+      typeof patch.brand === 'string' ? patch.brand.trim() : (current?.brand ?? undefined);
+
+    const nextLineage =
+      typeof patch.lineage === 'string' ? patch.lineage.trim() : (current?.lineage ?? undefined);
+
+    const nextThc = isFiniteNumber(patch.thcPercent) ? patch.thcPercent : undefined;
+    const nextThca = isFiniteNumber(patch.thcaPercent) ? patch.thcaPercent : undefined;
+
+    const nextCostCents =
+      patch.dollars !== undefined ? (toCents(patch.dollars) ?? 0) : (current?.totalCostCents ?? 0);
+
+    const nextPurchaseDate =
+      typeof patch.purchaseDateISO === 'string' && patch.purchaseDateISO.trim()
+        ? patch.purchaseDateISO.trim()
+        : (current?.purchaseDate ?? new Date().toISOString().slice(0, 10));
+
+    try {
+      await upsertStrainByName(uid, {
+        name: nextStrainName,
+        type: nextType,
+        brand: nextBrand,
+        lineage: nextLineage,
+        thcPercent: nextThc,
+        thcaPercent: nextThca,
+      });
+    } catch {}
+
+    tx.update(
+      ref,
+      stripUndefined({
+        strainName: nextStrainName,
+        strainNameLower: nextStrainName.toLowerCase(),
+        strainType: nextType,
+        lineage: nextLineage || undefined,
+        brand: nextBrand || undefined,
+        thcPercent: nextThc,
+        thcaPercent: nextThca,
+
+        smokeableKind: nextKind,
+        concentrateCategory: nextCC,
+        concentrateForm: nextCF,
+
+        totalGrams: nextTotal,
+        remainingGrams: nextRemaining,
+        status: nextStatus,
+
+        totalCostCents: nextCostCents,
+        purchaseDate: nextPurchaseDate,
+
+        updatedAt: now(),
+      }) as any
+    );
+  });
 }
 
 export async function listPurchases(uid: string) {
@@ -680,12 +969,23 @@ export async function listPurchases(uid: string) {
           ? 'active'
           : 'depleted';
 
+    const smokeableKind: SmokeableKind = normalizeSmokeableKind(raw?.smokeableKind) || 'Flower';
+
     return {
       id: d.id,
       ...raw,
       totalGrams,
       remainingGrams,
       status,
+      smokeableKind,
+      concentrateCategory:
+        smokeableKind === 'Concentrate'
+          ? normalizeConcentrateCategory(raw?.concentrateCategory)
+          : undefined,
+      concentrateForm:
+        smokeableKind === 'Concentrate'
+          ? normalizeConcentrateForm(raw?.concentrateForm)
+          : undefined,
     };
   });
 }
@@ -700,7 +1000,9 @@ export async function incrementPurchaseGrams(uid: string, purchaseId: string, ad
     const rawAdd = typeof addGrams === 'number' ? addGrams : Number(addGrams);
     if (!Number.isFinite(rawAdd) || rawAdd <= 0) throw new Error('Invalid add grams amount');
 
-    const snappedAdd = snapPurchaseGrams(rawAdd);
+    const kind: SmokeableKind = normalizeSmokeableKind(p?.smokeableKind) || 'Flower';
+    const snappedAdd = kind === 'Concentrate' ? snapConcentrateGrams(rawAdd) : snapPurchaseGrams(rawAdd);
+
     const totalGrams = Number(((parseWeightToNumber(p.totalGrams) ?? 0) + snappedAdd).toFixed(2));
     const remainingGrams = Number(((parseWeightToNumber(p.remainingGrams) ?? 0) + snappedAdd).toFixed(2));
 
@@ -753,6 +1055,10 @@ export async function createEntryWithPurchaseDeduction(
         createdAt: now(),
         updatedAt: now(),
         purchaseId,
+
+        smokeableKind: coerceSmokeableKind(payload as any) || normalizeSmokeableKind(p?.smokeableKind) || 'Flower',
+        concentrateCategory: coerceConcentrateCategory(payload as any) || normalizeConcentrateCategory(p?.concentrateCategory),
+        concentrateForm: coerceConcentrateForm(payload as any) || normalizeConcentrateForm(p?.concentrateForm),
       }) as any
     );
 
@@ -773,6 +1079,8 @@ export async function createEntryWithPurchaseDeduction(
     const wastePercent =
       pTotal > 0 && wasteGrams > 0 ? Math.max(0, Math.min(100, (wasteGrams / pTotal) * 100)) : null;
 
+    const pk: SmokeableKind = normalizeSmokeableKind(p?.smokeableKind) || 'Flower';
+
     const archiveRef = doc(collection(db, 'users', uid, 'entries'));
     tx.set(
       archiveRef,
@@ -787,6 +1095,10 @@ export async function createEntryWithPurchaseDeduction(
         purchaseMadeDateISO,
         purchaseFinishedDateISO,
         purchaseFinishedAtMs: nowMs,
+
+        smokeableKind: pk,
+        concentrateCategory: pk === 'Concentrate' ? normalizeConcentrateCategory(p?.concentrateCategory) : undefined,
+        concentrateForm: pk === 'Concentrate' ? normalizeConcentrateForm(p?.concentrateForm) : undefined,
 
         strainName: p.strainName || 'Untitled',
         strainNameLower: (p.strainName || 'Untitled').toLowerCase(),
@@ -803,12 +1115,17 @@ export async function createEntryWithPurchaseDeduction(
           remainingGrams: newRemaining,
           totalCostCents: p.totalCostCents ?? 0,
           purchaseDate: purchaseMadeDateISO,
+
+          smokeableKind: pk,
+          concentrateCategory: pk === 'Concentrate' ? normalizeConcentrateCategory(p?.concentrateCategory) : undefined,
+          concentrateForm: pk === 'Concentrate' ? normalizeConcentrateForm(p?.concentrateForm) : undefined,
         }),
 
         ...(wasteGrams > 0
           ? {
               wasteGrams,
-              wastePercent: typeof wastePercent === 'number' ? Math.round(wastePercent * 100) / 100 : undefined,
+              wastePercent:
+                typeof wastePercent === 'number' ? Math.round(wastePercent * 100) / 100 : undefined,
             }
           : {}),
 
@@ -825,10 +1142,19 @@ export async function createEntryWithPurchaseDeduction(
 
 export async function findPurchaseForStrain(
   uid: string,
-  strainName: string
+  strainName: string,
+  opts?: {
+    smokeableKind?: SmokeableKind;
+    concentrateCategory?: ConcentrateCategory;
+    concentrateForm?: ConcentrateForm;
+  }
 ): Promise<{ id: string } | undefined> {
   const nameLower = (strainName || '').trim().toLowerCase();
   if (!nameLower) return undefined;
+
+  const kind = normalizeSmokeableKind(opts?.smokeableKind) || 'Flower';
+  const cc = kind === 'Concentrate' ? normalizeConcentrateCategory(opts?.concentrateCategory) : undefined;
+  const cf = kind === 'Concentrate' ? normalizeConcentrateForm(opts?.concentrateForm) : undefined;
 
   const qy = query(purchasesCol(uid), where('strainNameLower', '==', nameLower));
   const snap = await getDocs(qy);
@@ -837,6 +1163,20 @@ export async function findPurchaseForStrain(
   const rows = snap.docs
     .map((d) => ({ id: d.id, ...(d.data() as any) }))
     .filter((p: any) => (parseWeightToNumber(p?.remainingGrams) ?? 0) > 0)
+    .filter((p: any) => {
+      const pk: SmokeableKind = normalizeSmokeableKind(p?.smokeableKind) || 'Flower';
+      if (pk !== kind) return false;
+
+      if (kind !== 'Concentrate') return true;
+
+      const pcc = normalizeConcentrateCategory(p?.concentrateCategory);
+      const pcf = normalizeConcentrateForm(p?.concentrateForm);
+
+      if (cc && pcc !== cc) return false;
+      if (cf && pcf !== cf) return false;
+
+      return true;
+    })
     .sort((a: any, b: any) => (b?.updatedAt ?? 0) - (a?.updatedAt ?? 0));
 
   return rows.length ? { id: rows[0].id } : undefined;
@@ -848,15 +1188,24 @@ export async function createEntryAutoDeduct(
 ): Promise<string> {
   const methodStr = String((payload as any).method || '').toLowerCase();
   const isEdible = methodStr === 'edible' || (payload as any).isEdibleSession === true;
-
   if (isEdible) return createEntry(uid, payload);
 
   const strainName = ((payload as any).strainName || '').trim();
   if (!strainName) return createEntry(uid, payload);
 
-  const match = await findPurchaseForStrain(uid, strainName);
-  if (!match) return createEntry(uid, payload);
+  const smokeableKind = coerceSmokeableKind(payload as any) || 'Flower';
+  const concentrateCategory =
+    smokeableKind === 'Concentrate' ? coerceConcentrateCategory(payload as any) : undefined;
+  const concentrateForm =
+    smokeableKind === 'Concentrate' ? coerceConcentrateForm(payload as any) : undefined;
 
+  const match = await findPurchaseForStrain(uid, strainName, {
+    smokeableKind,
+    concentrateCategory,
+    concentrateForm,
+  });
+
+  if (!match) return createEntry(uid, payload);
   return createEntryWithPurchaseDeduction(uid, match.id, payload);
 }
 
@@ -877,6 +1226,8 @@ export async function finishAndArchivePurchase(
     const purchaseFinishedDateISO = new Date(nowMs).toISOString().slice(0, 10);
     const purchaseMadeDateISO: string | null = p?.purchaseDate ?? null;
 
+    const pk: SmokeableKind = normalizeSmokeableKind(p?.smokeableKind) || 'Flower';
+
     const newEntryRef = doc(collection(db, 'users', uid, 'entries'));
     tx.set(
       newEntryRef,
@@ -887,9 +1238,15 @@ export async function finishAndArchivePurchase(
         journalType: 'purchase-archive',
         isPurchaseArchive: true,
         hiddenFromDaily: true,
+
         purchaseMadeDateISO,
         purchaseFinishedDateISO,
         purchaseFinishedAtMs: nowMs,
+
+        smokeableKind: pk,
+        concentrateCategory: pk === 'Concentrate' ? normalizeConcentrateCategory(p?.concentrateCategory) : undefined,
+        concentrateForm: pk === 'Concentrate' ? normalizeConcentrateForm(p?.concentrateForm) : undefined,
+
         strainName: p.strainName || 'Untitled',
         strainNameLower: (p.strainName || 'Untitled').toLowerCase(),
         strainType: p.strainType || 'Hybrid',
@@ -898,13 +1255,19 @@ export async function finishAndArchivePurchase(
         lineage: p.lineage || undefined,
         thcPercent: typeof p.thcPercent === 'number' ? p.thcPercent : undefined,
         thcaPercent: typeof p.thcaPercent === 'number' ? p.thcaPercent : undefined,
+
         purchaseId: pref.id,
         purchaseSnapshot: {
           totalGrams: p.totalGrams,
           remainingGrams: p.remainingGrams,
           totalCostCents: p.totalCostCents ?? 0,
           purchaseDate: purchaseMadeDateISO,
+
+          smokeableKind: pk,
+          concentrateCategory: pk === 'Concentrate' ? normalizeConcentrateCategory(p?.concentrateCategory) : undefined,
+          concentrateForm: pk === 'Concentrate' ? normalizeConcentrateForm(p?.concentrateForm) : undefined,
         },
+
         createdAt: nowMs,
         updatedAt: nowMs,
       }) as any

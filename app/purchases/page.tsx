@@ -90,7 +90,7 @@ export default function Page() {
               <div key={type} className={styles.typeBlock}>
                 <h3 className={styles.typeHeading}>
                   <span className={`badge ${badgeClass(baseType)}`}>
-                    {type} <span className={styles.typeSuffix}>Flower</span>
+                    {type}
                   </span>
                 </h3>
 
