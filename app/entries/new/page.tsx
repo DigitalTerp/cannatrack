@@ -1,9 +1,11 @@
-'use client';
+'use client'
 
-import { useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
-import AddEntryForm from '@/components/AddEntryForm';
-import styles from './NewEntryPage.module.css';
+export const dynamic = 'force-dynamic'
+
+import { Suspense, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
+import AddEntryForm from '@/components/AddEntryForm'
+import styles from './NewEntryPage.module.css'
 
 import type {
   Method,
@@ -12,53 +14,56 @@ import type {
   SmokeableKind,
   ConcentrateCategory,
   ConcentrateForm,
-} from '@/lib/types';
+} from '@/lib/types'
 
 type InitialPrefill = Partial<{
-  purchaseId: string;
+  purchaseId: string
 
-  strainName: string;
-  strainType: StrainType;
-  brand: string;
-  lineage: string;
-  thcPercent: string;
-  thcaPercent: string;
+  strainName: string
+  strainType: StrainType
+  brand: string
+  lineage: string
+  thcPercent: string
+  thcaPercent: string
 
-  smokeableKind: SmokeableKind;
-  concentrateCategory: ConcentrateCategory;
-  concentrateForm: ConcentrateForm;
+  smokeableKind: SmokeableKind
+  concentrateCategory: ConcentrateCategory
+  concentrateForm: ConcentrateForm
 
-  method: Method;
-  weight: string;
+  method: Method
+  weight: string
 
-  edibleName: string;
-  edibleType: EdibleType;
-  thcMg: string;
+  edibleName: string
+  edibleType: EdibleType
+  thcMg: string
 
-  notes: string;
-}>;
+  notes: string
+}>
 
 function firstParam(sp: URLSearchParams, keys: string[]) {
   for (const k of keys) {
-    const v = sp.get(k);
-    if (v != null && String(v).trim() !== '') return v;
+    const v = sp.get(k)
+    if (v != null && String(v).trim() !== '') return v
   }
-  return undefined;
+  return undefined
 }
 
 function norm(v?: string) {
-  return (v ?? '').trim();
+  return (v ?? '').trim()
 }
 
-export default function NewEntryPage() {
-  const sp = useSearchParams();
+function NewEntryPageInner() {
+  const sp = useSearchParams()
 
   const initialPrefill: InitialPrefill | undefined = useMemo(() => {
-    if (!sp) return undefined;
-
-    const smokeableRaw = firstParam(sp, ['smokeableKind', 'smokeableType', 'productType', 'type']);
-    const catRaw = firstParam(sp, ['concentrateCategory', 'category']);
-    const formRaw = firstParam(sp, ['concentrateForm', 'form']);
+    const smokeableRaw = firstParam(sp, [
+      'smokeableKind',
+      'smokeableType',
+      'productType',
+      'type',
+    ])
+    const catRaw = firstParam(sp, ['concentrateCategory', 'category'])
+    const formRaw = firstParam(sp, ['concentrateForm', 'form'])
 
     const pre: InitialPrefill = {
       purchaseId: norm(firstParam(sp, ['purchaseId'])) || undefined,
@@ -83,11 +88,14 @@ export default function NewEntryPage() {
       thcMg: norm(firstParam(sp, ['thcMg'])) || undefined,
 
       notes: norm(firstParam(sp, ['notes'])) || undefined,
-    };
+    }
 
-    const hasAny = Object.values(pre).some((v) => v != null && String(v).trim() !== '');
-    return hasAny ? pre : undefined;
-  }, [sp]);
+    const hasAny = Object.values(pre).some(
+      (v) => v != null && String(v).trim() !== ''
+    )
+
+    return hasAny ? pre : undefined
+  }, [sp])
 
   return (
     <div className="container">
@@ -100,5 +108,13 @@ export default function NewEntryPage() {
 
       <AddEntryForm/>
     </div>
-  );
+  )
+}
+
+export default function NewEntryPage() {
+  return (
+    <Suspense fallback={<div className="container">Loading…</div>}>
+      <NewEntryPageInner />
+    </Suspense>
+  )
 }
