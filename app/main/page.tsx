@@ -10,7 +10,6 @@ export default function MainPage() {
   return (
     <div className={styles.page}>
       <div className={styles.centerWrap}>
-
         <section className={styles.heroCard} aria-labelledby="welcome-title">
           <div className={styles.brandCol}>
             <Image
@@ -38,16 +37,20 @@ export default function MainPage() {
                 effects, tastes, smell, and other notes so you can quickly recognize your favorites.
               </li>
               <li>
-              <strong>Edible Tracking</strong> — Log gummies, chocolates, beverages, and pills in precise THC milligrams (mg) 
-              with strain type, and compare trends alongside flower sessions.
+                <strong>Edible Tracking</strong> — Log gummies, chocolates, beverages, and pills in
+                precise THC milligrams (mg) with strain type, and compare trends alongside flower sessions.
               </li>
-
+              <li>
+                <strong>Concentrate Support</strong> — Track flower <em>and</em> concentrates with
+                categories like Cured, Live Resin, and Live Rosin, plus form details for a more accurate log.
+              </li>
               <li>
                 <strong>Personalized Insights</strong> — See sessions per day, total weight consumed,
-                and which types (Indica / Hybrid / Sativa) you reach for most. <strong>Plus More!</strong>
+                most-used types, dab trends, and top cultivars at a glance.
               </li>
               <li>
-                <strong>Simple Daily Logging</strong> — Record method, weight or mg in seconds—then revisit your history by day.
+                <strong>Simple Daily Logging</strong> — Record method, weight or mg in seconds—then
+                revisit your history by day.
               </li>
             </ul>
           </div>
@@ -67,44 +70,73 @@ export default function MainPage() {
             </button>
           </div>
         </section>
-
-        <section className={styles.heroCard} aria-labelledby="new-purchases" style={{ marginTop: 16 }}>
-          <h2 id="new-purchases" className={styles.ediblesHeading}>
-            <span className={styles.newBadge}>NEW!</span>
-            Purchase Tracker
+         <section className={styles.heroCard} aria-labelledby="latest-updates" style={{ marginTop: 16 }}>
+          <h2 id="latest-updates" className={styles.ediblesHeading}>
+            <span className={styles.newBadge}>LATEST</span>
+            Insights &amp; Cultivar Upgrades
           </h2>
 
           <p className={styles.tagline} style={{ marginTop: 8 }}>
-            Track your stash from <em>purchase to finish</em> with live inventory, potency and spend,
-            auto-archiving, and a clean 30-day history view.
+            Today’s updates build on the concentrate rollout with better analytics and a more interactive
+            cultivar library.
           </p>
 
           <div className={styles.features}>
             <ul>
               <li>
-                <strong>Log purchases fast</strong> — Cultivar, Amount, Cost, Dates, and optional potency.
+                <strong>Dab insights</strong> — Track dab usage in grams with charts for cultivar type,
+                concentrate type, and top dab cultivars.
               </li>
               <li>
-                <strong>Live inventory</strong> — See remaining vs. total with a colorful progress bar.
+                <strong>Top Cultivar from Dabs</strong> — Quickly see which cultivar shows up the most in your dab sessions.
               </li>
               <li>
-                <strong>Finish &amp; archive</strong> — One click to archive with clear history cards.
+                <strong>Concentrate breakdowns</strong> — See which concentrate styles you use most across the last 30 days.
               </li>
               <li>
-                <strong>30-day overview</strong> — Totals for purchases, amount spent, and quantity (grams/ounces).
+                <strong>Cultivar totals</strong> — The library now shows your total number of saved cultivars.
+              </li>
+              <li>
+                <strong>Type filters</strong> — Filter your library instantly by Indica, Hybrid, or Sativa.
               </li>
             </ul>
           </div>
+        </section>
 
-          <div className={styles.actions}>
-            <button
-              className="btn btn-primary"
-              onClick={() => router.push('/login?next=/purchases')}
-            >
-              Open Purchase Tracker
-            </button>
+        <section className={styles.heroCard} aria-labelledby="march-concentrates" style={{ marginTop: 16 }}>
+          <h2 id="march-concentrates" className={styles.ediblesHeading}>
+            <span className={styles.newBadge}>MARCH UPDATE</span>
+            Concentrates Are Here
+          </h2>
+
+          <p className={styles.tagline} style={{ marginTop: 8 }}>
+            The biggest update from the beginning of March brought full <em>concentrate support</em>
+            into My Canna Tracker—so your sessions, purchases, and stash tracking now reflect more than just flower.
+          </p>
+
+          <div className={styles.features}>
+            <ul>
+              <li>
+                <strong>Flower or Concentrate</strong> — Log the type of smokeable product you’re using.
+              </li>
+              <li>
+                <strong>Concentrate categories</strong> — Track Cured, Live Resin, and Live Rosin.
+              </li>
+              <li>
+                <strong>Form-aware logging</strong> — Save details like Sugar, Badder, Crumble,
+                Diamonds and Sauce, Hash Rosin, and more.
+              </li>
+              <li>
+                <strong>Purchase matching</strong> — Sessions deduct from the correct concentrate purchase
+                based on type and form.
+              </li>
+              <li>
+                <strong>Cleaner inventory tracking</strong> — Better handling for active, depleted, and archived concentrates.
+              </li>
+            </ul>
           </div>
         </section>
+
       </div>
     </div>
   );

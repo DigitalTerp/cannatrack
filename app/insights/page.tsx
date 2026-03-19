@@ -93,7 +93,29 @@ function mgOf(e: Entry) {
 }
 const isEdible = (e: Entry) => String(e.method) === 'Edible';
 
-/* Type badge helper (matches other pages) */
+function isDab(e: Entry) {
+  return String(e.method) === 'Dab';
+}
+
+function isConcentrateDab(e: Entry) {
+  return isDab(e) && e.smokeableKind === 'Concentrate';
+}
+
+function dabGramsOf(e: Entry) {
+  if (!isConcentrateDab(e)) return 0;
+  return gramsOf(e);
+}
+
+function concentrateTypeLabel(e: Entry) {
+  const form = e.concentrateForm?.trim();
+  const category = e.concentrateCategory?.trim();
+
+  if (form && category) return `${form} (${category})`;
+  if (form) return form;
+  if (category) return category;
+  return 'Unknown';
+}
+
 function badgeClass(t?: StrainType) {
   const key = (t || 'Hybrid').toLowerCase();
   if (key === 'indica') return `${typeStyles.typeBadge} ${typeStyles['type-indica']}`;
@@ -101,7 +123,6 @@ function badgeClass(t?: StrainType) {
   return `${typeStyles.typeBadge} ${typeStyles['type-hybrid']}`;
 }
 
-/* Tooltip styles */
 const tooltipContentStyle: React.CSSProperties = {
   background: 'rgba(17,24,39,0.96)',
   border: '1px solid #374151',
@@ -127,13 +148,12 @@ function formatWeightGraph(g: number): string {
   if (g < G_PER_OZ) return `${g} g`;
   const oz = g / G_PER_OZ;
   return `${oz.toFixed(2)} oz\u00A0\u00A0 ( ${g} g )`;
-
 }
 
 /* ---------------------------- Page ---------------------------- */
 export default function InsightsPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [displayName, setDisplayName] = useState<string>(''); // Hydrate Greeting 
+  const [displayName, setDisplayName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -154,7 +174,6 @@ export default function InsightsPage() {
       setLoading(true);
       setErr(null);
       try {
-        // 7 days
         const d7 = lastNDaysLocal(7);
         const r7 = await Promise.all(
           d7.map((d) => listEntriesForDay(user.uid!, startOfDayLocal(d).getTime()))
@@ -163,7 +182,6 @@ export default function InsightsPage() {
         d7.forEach((d, i) => (m7[dayKey(d)] = r7[i] || []));
         setWeekEntries(m7);
 
-        // 30 days
         const d30 = lastNDaysLocal(30);
         const r30 = await Promise.all(
           d30.map((d) => listEntriesForDay(user.uid!, startOfDayLocal(d).getTime()))
@@ -207,28 +225,38 @@ export default function InsightsPage() {
     const totalGrams = Number(sum(grams7.map((x) => x.grams)).toFixed(2));
 
     const days = lastNDaysLocal(7);
+
     const totalEdibleMg = Number(
       days
         .map((d) => {
           const key = dayKey(d);
-          const mg = sum((weekEntries[key] || []).filter(isEdible).map(mgOf));
-          return mg;
+          return sum((weekEntries[key] || []).filter(isEdible).map(mgOf));
         })
         .reduce((a, b) => a + b, 0)
         .toFixed(2)
     );
 
-    return { totalSessions, totalGrams, totalEdibleMg };
+    const totalDabGrams = Number(
+      days
+        .map((d) => {
+          const key = dayKey(d);
+          return sum((weekEntries[key] || []).filter(isConcentrateDab).map(dabGramsOf));
+        })
+        .reduce((a, b) => a + b, 0)
+        .toFixed(2)
+    );
+
+    return { totalSessions, totalGrams, totalEdibleMg, totalDabGrams };
   }, [sessions7, grams7, weekEntries]);
 
   /* ----------- 30-Day aggregates ----------- */
   const flat30 = useMemo(() => Object.values(monthEntries).flat(), [monthEntries]);
   const flat30Smoke = useMemo(() => flat30.filter((e) => !isEdible(e)), [flat30]);
   const edibleEntries30 = useMemo(() => flat30.filter(isEdible), [flat30]);
+  const dabEntries30 = useMemo(() => flat30.filter((e) => isConcentrateDab(e)), [flat30]);
 
-  // Method mix (includes "Edible" with 0 grams)
   const methodMix30 = useMemo(() => {
-    const METHODS: Array<Method | 'Edible'> = ['Bong',  'Dab', 'Edible', 'Pipe', 'Pre-Roll', 'Vape'];
+    const METHODS: Array<Method | 'Edible'> = ['Bong', 'Dab', 'Edible', 'Pipe', 'Pre-Roll', 'Vape'];
     const base: Record<string, { sessions: number; grams: number }> = {};
     METHODS.forEach((m) => (base[m] = { sessions: 0, grams: 0 }));
 
@@ -246,7 +274,6 @@ export default function InsightsPage() {
     }));
   }, [flat30]);
 
-  // Cultivar type mix — SMOKEABLES ONLY
   const typeMix30 = useMemo(() => {
     const base: Record<StrainType, { sessions: number; grams: number }> = {
       Sativa: { sessions: 0, grams: 0 },
@@ -266,7 +293,6 @@ export default function InsightsPage() {
     }));
   }, [flat30Smoke]);
 
-  // Most preferred type by grams — SMOKEABLES ONLY
   const preferredType = useMemo(() => {
     if (typeMix30.length === 0) return '—';
     const max = [...typeMix30].sort((a, b) => b.grams - a.grams)[0];
@@ -283,6 +309,7 @@ export default function InsightsPage() {
       return { name: mdLabel(d), count };
     });
   }, [monthEntries]);
+
   const sessions30 = useMemo(() => {
     const nonZero = sessions30All.filter((x) => x.count > 0);
     return nonZero.length ? nonZero : sessions30All;
@@ -296,6 +323,7 @@ export default function InsightsPage() {
       return { name: mdLabel(d), grams: Number(grams.toFixed(2)) };
     });
   }, [monthEntries]);
+
   const grams30 = useMemo(() => {
     const nonZero = grams30All.filter((x) => x.grams > 0);
     return nonZero.length ? nonZero : grams30All;
@@ -322,7 +350,6 @@ export default function InsightsPage() {
       .slice(0, 5);
   }, [flat30Smoke]);
 
-  // Top cultivar's most common strain type — SMOKEABLES ONLY
   const topCultivarBadge = useMemo(() => {
     if (!topCultivars30.length) return null;
     const topName = topCultivars30[0].name?.trim() || 'Unknown';
@@ -337,7 +364,10 @@ export default function InsightsPage() {
     let best: StrainType = 'Hybrid';
     let max = -1;
     (['Indica', 'Hybrid', 'Sativa'] as StrainType[]).forEach((t) => {
-      if (counts[t] > max) { max = counts[t]; best = t; }
+      if (counts[t] > max) {
+        max = counts[t];
+        best = t;
+      }
     });
     return { name: topName, type: best as StrainType };
   }, [topCultivars30, flat30Smoke]);
@@ -389,6 +419,86 @@ export default function InsightsPage() {
     return ordered.map((k) => ({ type: k, sessions: counts[k] }));
   }, [edibleEntries30]);
 
+  /* ======================= DAB INSIGHTS ======================= */
+  const dabByStrainType = useMemo(() => {
+    const base: Record<StrainType, { grams: number; sessions: number }> = {
+      Indica: { grams: 0, sessions: 0 },
+      Hybrid: { grams: 0, sessions: 0 },
+      Sativa: { grams: 0, sessions: 0 },
+    };
+
+    for (const e of dabEntries30) {
+      const t = (e.strainType as StrainType) || 'Hybrid';
+      base[t].grams += dabGramsOf(e);
+      base[t].sessions += 1;
+    }
+
+    return (Object.keys(base) as StrainType[]).map((t) => ({
+      type: t,
+      grams: Number(base[t].grams.toFixed(2)),
+      sessions: base[t].sessions,
+    }));
+  }, [dabEntries30]);
+
+  const totalDabGrams = useMemo(
+    () => Number(sum(dabByStrainType.map((x) => x.grams)).toFixed(2)),
+    [dabByStrainType]
+  );
+
+  const dabConcentrateTypes30 = useMemo(() => {
+    const map = new Map<string, { grams: number; sessions: number }>();
+
+    for (const e of dabEntries30) {
+      const label = concentrateTypeLabel(e);
+      const prev = map.get(label) || { grams: 0, sessions: 0 };
+      prev.grams += dabGramsOf(e);
+      prev.sessions += 1;
+      map.set(label, prev);
+    }
+
+    return Array.from(map.entries())
+      .map(([type, v]) => ({
+        type,
+        grams: Number(v.grams.toFixed(2)),
+        sessions: v.sessions,
+      }))
+      .sort((a, b) => b.grams - a.grams);
+  }, [dabEntries30]);
+
+  const topDabCultivars30 = useMemo(() => {
+    const m = new Map<string, { count: number; grams: number; type: StrainType }>();
+
+    for (const e of dabEntries30) {
+      const name = (e.strainName || 'Unknown').trim();
+      const grams = dabGramsOf(e);
+      const type = (e.strainType as StrainType) || 'Hybrid';
+      const prev = m.get(name) || { count: 0, grams: 0, type };
+      m.set(name, {
+        count: prev.count + 1,
+        grams: prev.grams + grams,
+        type: prev.type || type,
+      });
+    }
+
+    return Array.from(m.entries())
+      .map(([name, v]) => ({
+        name,
+        count: v.count,
+        grams: Number(v.grams.toFixed(2)),
+        type: v.type,
+      }))
+      .sort((a, b) => b.grams - a.grams)
+      .slice(0, 5);
+  }, [dabEntries30]);
+
+  const topDabCultivarBadge = useMemo(() => {
+    if (!topDabCultivars30.length) return null;
+    return {
+      name: topDabCultivars30[0].name,
+      type: topDabCultivars30[0].type,
+    };
+  }, [topDabCultivars30]);
+
   if (!user) {
     return (
       <div className="container">
@@ -414,13 +524,24 @@ export default function InsightsPage() {
         <div className={styles.statsBar}>
           <div>
             <h2>Last 7 Days</h2>
-            <div className="subtle"><em><strong>{range7}</strong></em></div>
+            <div className="subtle">
+              <em>
+                <strong>{range7}</strong>
+              </em>
+            </div>
           </div>
           <div className={styles.statsBadges}>
             <span className={`badge ${styles.badgeBig}`}>Sessions: {badges7.totalSessions}</span>
-            <span className={`badge ${styles.badgeBig}`}>Weight: {formatWeightTotal(badges7.totalGrams)}</span>
+            <span className={`badge ${styles.badgeBig}`}>
+              Weight: {formatWeightTotal(badges7.totalGrams)}
+            </span>
             {badges7.totalEdibleMg > 0 && (
               <span className={`badge ${styles.badgeBig}`}>Edibles: {badges7.totalEdibleMg} mg</span>
+            )}
+            {badges7.totalDabGrams > 0 && (
+              <span className={`badge ${styles.badgeBig}`}>
+                Dabs: {formatWeightTotal(badges7.totalDabGrams)}
+              </span>
             )}
           </div>
         </div>
@@ -432,8 +553,15 @@ export default function InsightsPage() {
       {!loading && !err && (
         <div className={styles.dashboardGrid}>
           <div className="card">
-            <h2>Sessions<br /> ( Last 30 Days )</h2>
-            <div className="subtle"><em><strong>{range30}</strong></em></div>
+            <h2>
+              Sessions
+              <br /> ( Last 30 Days )
+            </h2>
+            <div className="subtle">
+              <em>
+                <strong>{range30}</strong>
+              </em>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
               <span className={`badge ${styles.badgeBig}`}>Total Sessions: {totalSessions30}</span>
             </div>
@@ -455,7 +583,11 @@ export default function InsightsPage() {
                     height={manySessionBars ? 56 : undefined}
                   />
                   <YAxis allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+                  <Tooltip
+                    contentStyle={tooltipContentStyle}
+                    labelStyle={tooltipLabelStyle}
+                    itemStyle={tooltipItemStyle}
+                  />
                   <Bar dataKey="count" name="Sessions" fill={COLORS.emerald} />
                 </BarChart>
               </ResponsiveContainer>
@@ -463,8 +595,15 @@ export default function InsightsPage() {
           </div>
 
           <div className="card">
-            <h2>Weight Consumed<br /> ( Last 30 Days )</h2>
-            <div className="subtle"><em><strong>{range30}</strong></em></div>
+            <h2>
+              Weight Consumed
+              <br /> ( Last 30 Days )
+            </h2>
+            <div className="subtle">
+              <em>
+                <strong>{range30}</strong>
+              </em>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
               <span className={`badge ${styles.badgeBig}`}>Total: {formatWeightTotal(totalGrams30)}</span>
             </div>
@@ -498,24 +637,31 @@ export default function InsightsPage() {
           </div>
 
           <div className="card">
-            <h2>Consumption Method<br /> ( Last 30 Days )</h2>
-            <div className="subtle"><em><strong>{range30}</strong></em></div>
+            <h2>
+              Consumption Method
+              <br /> ( Last 30 Days )
+            </h2>
+            <div className="subtle">
+              <em>
+                <strong>{range30}</strong>
+              </em>
+            </div>
             <div className="subtle">Sessions vs. total grams, by consumption method.</div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={methodMix30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="method" interval={0}/>
+                  <XAxis dataKey="method" interval={0} />
                   <YAxis />
                   <Tooltip
                     contentStyle={tooltipContentStyle}
                     labelStyle={tooltipLabelStyle}
                     itemStyle={tooltipItemStyle}
                     formatter={(val: any, name: string) =>
-                    name === 'Grams'
-                  ? [formatWeightGraph(Number(val)), 'Weight']
-                    : [val, 'Sessions']
-                  }
+                      name === 'Grams'
+                        ? [formatWeightGraph(Number(val)), 'Weight']
+                        : [val, 'Sessions']
+                    }
                   />
                   <Legend />
                   <Bar dataKey="sessions" name="Sessions" fill={COLORS.slate} />
@@ -526,13 +672,19 @@ export default function InsightsPage() {
           </div>
 
           <div className="card">
-            <h2>Cultivar Type Consumed<br />( Last 30 Days )</h2>
-            <div className="subtle"><em><strong>{range30}</strong></em></div>
+            <h2>
+              Cultivar Type Consumed
+              <br />
+              ( Last 30 Days )
+            </h2>
+            <div className="subtle">
+              <em>
+                <strong>{range30}</strong>
+              </em>
+            </div>
             <div className={styles.centerRow}>
               <span className={`subtle ${styles.subtleStrong}`}>Most Type Consumed:</span>
-              <span className={`badge ${badgeClass(preferredType as StrainType)}`}>
-                {preferredType}
-              </span>
+              <span className={`badge ${badgeClass(preferredType as StrainType)}`}>{preferredType}</span>
             </div>
             <div className="subtle">Sessions vs. total grams, by Sativa / Hybrid / Indica.</div>
             <div className={styles.chartWrap}>
@@ -546,12 +698,11 @@ export default function InsightsPage() {
                     labelStyle={tooltipLabelStyle}
                     itemStyle={tooltipItemStyle}
                     formatter={(val: any, name: string) =>
-                    name === 'Grams'
-                      ? [formatWeightGraph(Number(val)), 'Weight']
-                      : [val, 'Sessions']
-                      }
+                      name === 'Grams'
+                        ? [formatWeightGraph(Number(val)), 'Weight']
+                        : [val, 'Sessions']
+                    }
                   />
-
                   <Legend />
                   <Bar dataKey="sessions" name="Sessions" fill={COLORS.cyan} />
                   <Bar dataKey="grams" name="Grams" fill={COLORS.lime} />
@@ -561,8 +712,16 @@ export default function InsightsPage() {
           </div>
 
           <div className="card">
-            <h2>Top Cultivars<br />( Last 30 Days )</h2>
-            <div className="subtle"><em><strong>{range30}</strong></em></div>
+            <h2>
+              Top Cultivars
+              <br />
+              ( Last 30 Days )
+            </h2>
+            <div className="subtle">
+              <em>
+                <strong>{range30}</strong>
+              </em>
+            </div>
             {topCultivarBadge && (
               <div className={styles.centerRow}>
                 <span className={`subtle ${styles.subtleStrong}`}>Top Cultivar:</span>
@@ -572,7 +731,8 @@ export default function InsightsPage() {
               </div>
             )}
             <div className="subtle">
-              Ranked by total grams consumed (smokeables only); bars show sessions and grams per cultivar.
+              Ranked by total grams consumed (smokeables only); bars show sessions and grams per
+              cultivar.
             </div>
             {topCultivars30.length === 0 ? (
               <div className="subtle">No data yet.</div>
@@ -589,9 +749,9 @@ export default function InsightsPage() {
                       labelStyle={tooltipLabelStyle}
                       itemStyle={tooltipItemStyle}
                       formatter={(val: any, name: string) =>
-                      name === 'Grams'
-                        ? [formatWeightGraph(Number(val)), 'Grams']
-                        : [val, 'Sessions']
+                        name === 'Grams'
+                          ? [formatWeightGraph(Number(val)), 'Grams']
+                          : [val, 'Sessions']
                       }
                     />
                     <Legend />
@@ -620,10 +780,14 @@ export default function InsightsPage() {
               <span className={`badge ${styles.badgeBig}`}>Total: {totalEdibleMg} mg</span>
             </div>
 
-            <div className="subtle">THC milligrams consumed (total), grouped by Indica / Hybrid / Sativa.</div>
+            <div className="subtle">
+              THC milligrams consumed (total), grouped by Indica / Hybrid / Sativa.
+            </div>
 
             {sum(edibleByStrainType.map((x) => x.mg)) === 0 ? (
-              <div className="subtle" style={{ marginTop: '.5rem' }}>No edible data yet.</div>
+              <div className="subtle" style={{ marginTop: '.5rem' }}>
+                No edible data yet.
+              </div>
             ) : (
               <div className={styles.chartWrap}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -648,19 +812,25 @@ export default function InsightsPage() {
               </div>
             )}
           </div>
-          
+
           <div className="card">
-            <h2>Edible Types (Sessions)<br /> ( Last 30 Days )</h2>
-            <div className="subtle"><em><strong>{range30}</strong></em></div>
-            <div className="subtle">Number of edible sessions by type (Beverage, Chocolate, Gummy, Pill).</div>
+            <h2>
+              Edible Types (Sessions)
+              <br /> ( Last 30 Days )
+            </h2>
+            <div className="subtle">
+              <em>
+                <strong>{range30}</strong>
+              </em>
+            </div>
+            <div className="subtle">
+              Number of edible sessions by type (Beverage, Chocolate, Gummy, Pill).
+            </div>
             <div className={styles.chartWrap}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={edibleTypeSessions30} margin={{ top: 8, right: 0, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="type"
-                  interval={0}
-                  tick={{ fontSize: 12, dy: 6 }}
-                  />
+                  <XAxis dataKey="type" interval={0} tick={{ fontSize: 12, dy: 6 }} />
                   <YAxis allowDecimals={false} />
                   <Tooltip
                     contentStyle={tooltipContentStyle}
@@ -675,6 +845,163 @@ export default function InsightsPage() {
             </div>
           </div>
 
+          <div className="card">
+            <h2>Dab Intake by Type</h2>
+
+            {(() => {
+              const max = [...dabByStrainType].sort((a, b) => b.grams - a.grams)[0];
+              return max && max.grams > 0 ? (
+                <div className={styles.centerRow}>
+                  <span className={`subtle ${styles.subtleStrong}`}>Most Dabbed Type:</span>
+                  <span className={`badge ${badgeClass(max.type as StrainType)}`}>{max.type}</span>
+                </div>
+              ) : null;
+            })()}
+
+            {topDabCultivarBadge && (
+              <div className={styles.centerRow}>
+                <span className={`subtle ${styles.subtleStrong}`}>Top Cultivar From Dabs:</span>
+                <span className={`badge ${badgeClass(topDabCultivarBadge.type as StrainType)}`}>
+                  {topDabCultivarBadge.name}
+                </span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '.35rem' }}>
+              <span className={`badge ${styles.badgeBig}`}>
+                Total: {formatWeightTotal(totalDabGrams)}
+              </span>
+            </div>
+
+            <div className="subtle">
+              Total dab grams consumed, grouped by Indica / Hybrid / Sativa.
+            </div>
+
+            {sum(dabByStrainType.map((x) => x.grams)) === 0 ? (
+              <div className="subtle" style={{ marginTop: '.5rem' }}>
+                No dab data yet.
+              </div>
+            ) : (
+              <div className={styles.chartWrap}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={dabByStrainType}
+                    margin={{ top: 8, right: 0, bottom: 8, left: 0 }}
+                    barCategoryGap="35%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="type" />
+                    <YAxis />
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      labelStyle={tooltipLabelStyle}
+                      itemStyle={tooltipItemStyle}
+                      formatter={(val: any) => [formatWeightGraph(Number(val)), 'Grams']}
+                    />
+                    <Legend />
+                    <Bar dataKey="grams" name="Grams" fill={COLORS.indigo} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <h2>
+              Types of Concentrates Dabbed
+              <br />
+              ( Last 30 Days )
+            </h2>
+            <div className="subtle">
+              <em>
+                <strong>{range30}</strong>
+              </em>
+            </div>
+            <div className="subtle">Total dab grams consumed by concentrate type.</div>
+
+            {dabConcentrateTypes30.length === 0 ? (
+              <div className="subtle" style={{ marginTop: '.5rem' }}>
+                No concentrate dab data yet.
+              </div>
+            ) : (
+              <div className={`${styles.chartWrap} ${styles.chartTall}`}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={dabConcentrateTypes30}
+                    margin={{ top: 8, right: 0, bottom: 24, left: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="type" interval={0} angle={-25} textAnchor="end" height={70} />
+                    <YAxis />
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      labelStyle={tooltipLabelStyle}
+                      itemStyle={tooltipItemStyle}
+                      formatter={(val: any, name: string) =>
+                        name === 'Grams' ? [formatWeightGraph(Number(val)), 'Grams'] : [val, 'Sessions']
+                      }
+                    />
+                    <Legend />
+                    <Bar dataKey="grams" name="Grams" fill={COLORS.violet} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <h2>
+              Top Dab Cultivars
+              <br />
+              ( Last 30 Days )
+            </h2>
+            <div className="subtle">
+              <em>
+                <strong>{range30}</strong>
+              </em>
+            </div>
+
+            {topDabCultivarBadge && (
+              <div className={styles.centerRow}>
+                <span className={`subtle ${styles.subtleStrong}`}>Top Dab Cultivar:</span>
+                <span className={`badge ${badgeClass(topDabCultivarBadge.type as StrainType)}`}>
+                  {topDabCultivarBadge.name}
+                </span>
+              </div>
+            )}
+
+            <div className="subtle">
+              Ranked by total dab grams consumed; bars show sessions and grams per cultivar.
+            </div>
+
+            {topDabCultivars30.length === 0 ? (
+              <div className="subtle">No dab cultivar data yet.</div>
+            ) : (
+              <div className={`${styles.chartWrap} ${styles.chartTall}`}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topDabCultivars30} margin={{ top: 8, right: 0, bottom: 24, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={60} />
+                    <YAxis yAxisId="left" allowDecimals={false} />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      labelStyle={tooltipLabelStyle}
+                      itemStyle={tooltipItemStyle}
+                      formatter={(val: any, name: string) =>
+                        name === 'Grams'
+                          ? [formatWeightGraph(Number(val)), 'Grams']
+                          : [val, 'Sessions']
+                      }
+                    />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="count" name="Sessions" fill={COLORS.slate} />
+                    <Bar yAxisId="right" dataKey="grams" name="Grams" fill={COLORS.cyan} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
