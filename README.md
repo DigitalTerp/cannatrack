@@ -12,8 +12,8 @@ A **personalizable** web app for logging cannabis sessions, organizing cultivars
 - **Session Logging (fast & flexible)**  
   Capture method, weight (g), auto-timestamp, rating, notes, plus structured **Effects / Smell / Taste** fields—so your logs are both consistent and expressive.
 
-![Cultivar Library](/public/CultivarsHistory.png)
-- **Cultivar Library (auto-upserting)**  
+- **Cultivar Library (auto-upserting)** 
+![Cultivar Library](/public/CultivarsHistory.png) 
   Your library grows automatically from session logs. Store **name, type (Indica/Sativa/Hybrid), cultivator, lineage, THC/THCA/CBD** and reuse across sessions.
 
 - **Smart Autofill**  
@@ -27,21 +27,21 @@ A **personalizable** web app for logging cannabis sessions, organizing cultivars
 - **Daily Tracker**  
   A today-at-a-glance view with clear type badges and quick actions.
 
-![Main Page](/public/HistoryScreen.png)
-- **History Navigation**  
+- **History Navigation** 
+![Main Page](/public/HistoryScreen.png) 
   Jump via **calendar picker** or **Prev / Today / Next**. Edit/delete inline.
 
-![Main Page](/public/Insights.png)
-- **Insights (early analytics)**  
+- **Insights (early analytics)**
+![Main Page](/public/Insights.png)  
   Simple trends like **totals/means by method, weight, rating**—a foundation for richer analytics.
 
-![Main Page](/public/MainMobileScreen.png.png)
 - **Mobile-First, Responsive UI**  
-![Main Page](/public/CannaTrackMobileMenu.png)
+![Main Page](/public/MainMobileScreen.png)
   Built for thumbs: large tap targets, native mobile inputs, accessible contrast, and a clean hamburger nav. Looks great on desktop; **optimized for phones**.
+![Main Page](/public/CannaTrackMobileMenu.png)
 
+- **Auth & Data**
 ![Main Page](/public/CannaTrackerLogin.png)
-- **Auth & Data**  
   Email/Password via Firebase Auth, user-scoped collections in Firestore.
 
 ---
